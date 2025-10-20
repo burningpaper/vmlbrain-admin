@@ -2,10 +2,6 @@ import { NextResponse } from 'next/server';
 import { supaAdmin } from '@/lib/supabaseAdmin';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 // Chunk text into smaller pieces for embedding
 function chunkText(text: string, maxChunkSize: number = 1000): string[] {
   const chunks: string[] = [];
@@ -58,6 +54,14 @@ export async function POST(req: Request) {
     if (policyError || !policy) {
       return NextResponse.json({ error: 'Policy not found' }, { status: 404 });
     }
+
+    // Init OpenAI client at runtime
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      console.warn('OPENAI_API_KEY is not set');
+      return NextResponse.json({ error: 'Server misconfiguration: OPENAI_API_KEY missing' }, { status: 500 });
+    }
+    const openai = new OpenAI({ apiKey });
 
     // Prepare content for embedding
     const fullText = `${policy.title}\n\n${policy.summary || ''}\n\n${stripHtml(policy.body_md || '')}`;

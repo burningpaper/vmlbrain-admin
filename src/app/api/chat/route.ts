@@ -2,9 +2,6 @@ import { NextResponse } from 'next/server';
 import { supaAdmin } from '@/lib/supabaseAdmin';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 type PolicyMatch = { policy_slug: string; content: string; chunk_index?: number; id?: number; similarity?: number };
 type PolicyMeta = { slug: string; title: string };
@@ -17,6 +14,14 @@ export async function POST(req: Request) {
     if (!message) {
       return NextResponse.json({ error: 'Message required' }, { status: 400 });
     }
+
+    // Init OpenAI client
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      console.warn('OPENAI_API_KEY is not set');
+      return NextResponse.json({ error: 'Server misconfiguration: OPENAI_API_KEY missing' }, { status: 500 });
+    }
+    const openai = new OpenAI({ apiKey });
 
     // Generate embedding for the question
     const embeddingResponse = await openai.embeddings.create({
