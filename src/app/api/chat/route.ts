@@ -108,11 +108,10 @@ export async function POST(req: Request) {
           });
 
           const answer = completion.choices[0].message.content || 'No answer generated';
-          const sources = kps.map((p: KPolicy) => ({
-            slug: p.slug,
-            title: p.title,
-            url: `/p/${p.slug}`,
-          }));
+          const primary = kps[0];
+          const sources = primary
+            ? [{ slug: primary.slug, title: primary.title, url: `/p/${primary.slug}` }]
+            : [];
 
           return NextResponse.json({ answer, sources });
         }
@@ -222,12 +221,17 @@ export async function POST(req: Request) {
 
     const answer = completion.choices[0].message.content || 'No answer generated';
 
-    // Format sources with links
-    const sources = uniquePolicySlugs.map(slug => ({
-      slug,
-      title: policyTitles.get(slug) || slug,
-      url: `/p/${slug}`,
-    }));
+    // Format a single primary source link (top vector match or first augmented)
+    const primarySlug =
+      (matches as PolicyMatch[])[0]?.policy_slug ||
+      augmentedMatches[0]?.policy_slug;
+    const sources = primarySlug
+      ? [{
+          slug: primarySlug,
+          title: policyTitles.get(primarySlug) || primarySlug,
+          url: `/p/${primarySlug}`,
+        }]
+      : [];
 
     return NextResponse.json({
       answer,

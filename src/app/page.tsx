@@ -1,5 +1,6 @@
 import { supa } from '@/lib/supabase';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default async function HomePage() {
   // Get all top-level pages (no parent)
@@ -46,7 +47,7 @@ export default async function HomePage() {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center space-x-3">
-              <span className="text-2xl">📚</span>
+              <Image src="/vml%20logo.jpg" alt="VML" width={24} height={24} className="rounded-sm" />
               <div>
                 <h1 className="text-xl font-semibold">Knowledge Base</h1>
                 <p className="text-sm text-gray-300">Your company policies, guides, and documentation</p>

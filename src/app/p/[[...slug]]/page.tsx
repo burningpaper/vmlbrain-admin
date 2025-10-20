@@ -1,6 +1,7 @@
 import { supa } from '@/lib/supabase';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import SidebarNav from '@/components/SidebarNav';
 
 export default async function PolicyPage({ params }: { params: Promise<{ slug?: string[] }> }) {
@@ -64,7 +65,7 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
         <div className="max-w-screen-2xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-              <span className="text-2xl">📚</span>
+              <Image src="/vml%20logo.jpg" alt="VML" width={24} height={24} className="rounded-sm" />
               <span className="text-xl font-semibold">Knowledge Base</span>
             </Link>
             <Link href="/admin" className="text-sm text-gray-300 hover:text-white transition-colors">

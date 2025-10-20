@@ -130,7 +130,7 @@ export default function AdminPage() {
 
   return (
     <main className="p-6 max-w-6xl mx-auto">
-      <h1 className="text-2xl font-semibold mb-4">Policy Editor</h1>
+      <h1 className="text-2xl font-semibold mb-4">Knowledge Editor</h1>
 
       {/* Token input */}
       <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -162,7 +162,7 @@ export default function AdminPage() {
               setParentSlug('');
             }}
           >
-            + New Policy
+            + New Article
           </button>
           <div className="text-xs text-gray-500 mb-2 mt-3 font-medium">CONTENT TREE</div>
           <ul className="space-y-1">
@@ -219,7 +219,7 @@ export default function AdminPage() {
 
           <PolicyEditor value={bodyHtml} onChange={setBodyHtml} token={token} />
           <button className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium" onClick={save}>
-            Save Policy
+            Save Article
           </button>
         </section>
       </div>
