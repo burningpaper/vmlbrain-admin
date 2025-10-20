@@ -216,7 +216,7 @@ export default function AdminPage() {
             </p>
           </div>
 
-          <PolicyEditor value={bodyHtml} onChange={setBodyHtml} />
+          <PolicyEditor value={bodyHtml} onChange={setBodyHtml} token={token} />
           <button className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium" onClick={save}>
             Save Policy
           </button>

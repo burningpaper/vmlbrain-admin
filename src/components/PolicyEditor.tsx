@@ -10,10 +10,10 @@ import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import { useCallback, useEffect } from 'react';
 
-async function uploadFile(file: File): Promise<string> {
+async function uploadFile(file: File, token: string): Promise<string> {
   const fd = new FormData();
   fd.append('file', file);
-  const res = await fetch('/api/upload', { method: 'POST', body: fd });
+  const res = await fetch('/api/upload', { method: 'POST', headers: { 'x-edit-token': token }, body: fd });
   if (!res.ok) throw new Error(await res.text());
   const { url } = await res.json();
   return url;
@@ -22,9 +22,11 @@ async function uploadFile(file: File): Promise<string> {
 export default function PolicyEditor({
   value,
   onChange,
+  token,
 }: {
   value: string;
   onChange: (html: string) => void;
+  token: string;
 }) {
   const editor = useEditor({
     extensions: [
@@ -45,7 +47,7 @@ export default function PolicyEditor({
         const file = Array.from(items).find(i => i.kind === 'file')?.getAsFile();
         if (!file) return false;
         event.preventDefault();
-        uploadFile(file).then(url => editor?.chain().focus().setImage({ src: url }).run());
+        uploadFile(file, token).then(url => editor?.chain().focus().setImage({ src: url }).run());
         return true;
       },
       handleDrop: (_view, e) => {
@@ -53,7 +55,7 @@ export default function PolicyEditor({
         const file = event.dataTransfer?.files?.[0];
         if (!file) return false;
         event.preventDefault();
-        uploadFile(file).then(url => editor?.chain().focus().setImage({ src: url }).run());
+        uploadFile(file, token).then(url => editor?.chain().focus().setImage({ src: url }).run());
         return true;
       },
       attributes: { 
@@ -87,7 +89,7 @@ export default function PolicyEditor({
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       try {
-        const url = await uploadFile(file);
+        const url = await uploadFile(file, token);
         editor?.chain().focus().setImage({ src: url }).run();
       } catch (error) {
         alert('Image upload failed: ' + error);

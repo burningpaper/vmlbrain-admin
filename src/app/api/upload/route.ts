@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
-import { supaAdmin } from '@/supabaseAdmin';
+import { supaAdmin } from '@/lib/supabaseAdmin';
 
 export async function POST(req: Request) {
   try {
+    const key = req.headers.get('x-edit-token');
+    if (key !== process.env.EDIT_TOKEN) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const formData = await req.formData();
     const file = formData.get('file') as File;
     

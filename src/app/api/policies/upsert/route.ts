@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supaAdmin } from '@/supabaseAdmin';
+import { supaAdmin } from '@/lib/supabaseAdmin';
 
 export async function POST(req: Request) {
   const key = req.headers.get('x-edit-token');
@@ -13,5 +13,18 @@ export async function POST(req: Request) {
   }, { onConflict: 'slug' });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  // Auto-generate embeddings in the background (don't wait for it)
+  if (process.env.OPENAI_API_KEY) {
+    fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/embeddings/generate`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-edit-token': key!,
+      },
+      body: JSON.stringify({ slug }),
+    }).catch(err => console.error('Background embedding generation failed:', err));
+  }
+
   return NextResponse.json({ ok: true });
 }
