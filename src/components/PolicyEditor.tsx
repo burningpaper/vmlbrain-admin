@@ -11,6 +11,7 @@ import TableHeader from '@tiptap/extension-table-header';
 import { useCallback, useEffect } from 'react';
 
 async function uploadFile(file: File, token: string): Promise<string> {
+  if (!token) throw new Error('Missing edit token');
   const fd = new FormData();
   fd.append('file', file);
   const res = await fetch('/api/upload', { method: 'POST', headers: { 'x-edit-token': token }, body: fd });
@@ -46,6 +47,10 @@ export default function PolicyEditor({
         if (!items) return false;
         const file = Array.from(items).find(i => i.kind === 'file')?.getAsFile();
         if (!file) return false;
+        if (!token) {
+          alert('Please enter your EDIT_TOKEN in the Admin panel to upload images.');
+          return true;
+        }
         event.preventDefault();
         uploadFile(file, token).then(url => editor?.chain().focus().setImage({ src: url }).run());
         return true;
@@ -54,6 +59,10 @@ export default function PolicyEditor({
         const event = e as DragEvent;
         const file = event.dataTransfer?.files?.[0];
         if (!file) return false;
+        if (!token) {
+          alert('Please enter your EDIT_TOKEN in the Admin panel to upload images.');
+          return true;
+        }
         event.preventDefault();
         uploadFile(file, token).then(url => editor?.chain().focus().setImage({ src: url }).run());
         return true;
@@ -82,6 +91,10 @@ export default function PolicyEditor({
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
+      if (!token) {
+        alert('Please enter your EDIT_TOKEN in the Admin panel to upload images.');
+        return;
+      }
       try {
         const url = await uploadFile(file, token);
         editor?.chain().focus().setImage({ src: url }).run();
