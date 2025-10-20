@@ -16,7 +16,9 @@ export async function POST(req: Request) {
 
   // Auto-generate embeddings in the background (don't wait for it)
   if (process.env.OPENAI_API_KEY) {
-    fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/embeddings/generate`, {
+    const requestUrl = new URL(req.url);
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || `${requestUrl.protocol}//${requestUrl.host}`;
+    fetch(`${baseUrl}/api/embeddings/generate`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
