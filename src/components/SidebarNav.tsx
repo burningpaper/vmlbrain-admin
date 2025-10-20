@@ -12,10 +12,9 @@ interface NavItem {
 
 interface SidebarNavProps {
   items: NavItem[];
-  currentSlug: string;
 }
 
-export default function SidebarNav({ items, currentSlug }: SidebarNavProps) {
+export default function SidebarNav({ items }: SidebarNavProps) {
   const pathname = usePathname();
 
   // Build tree structure

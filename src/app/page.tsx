@@ -17,11 +17,25 @@ export default async function HomePage() {
     .eq('status', 'approved')
     .order('title');
 
+  // Normalize types for strict linting
+  const top =
+    (topLevelPages as { slug: string; title: string; summary: string | null }[] | null) || [];
+  const all =
+    (allPages as {
+      slug: string;
+      title: string;
+      summary: string | null;
+      parent_slug: string | null;
+    }[] | null) || [];
+
   // Group pages by top-level parent
-  const pageGroups = new Map<string, any[]>();
-  
-  topLevelPages?.forEach(page => {
-    const children = allPages?.filter(p => p.parent_slug === page.slug) || [];
+  const pageGroups = new Map<
+    string,
+    { slug: string; title: string; summary: string | null; parent_slug: string | null }[]
+  >();
+
+  top.forEach((page) => {
+    const children = all.filter((p) => p.parent_slug === page.slug) || [];
     pageGroups.set(page.slug, children);
   });
 
@@ -52,7 +66,7 @@ export default async function HomePage() {
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Content Categories */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {topLevelPages?.map((page) => {
+          {top.map((page) => {
             const children = pageGroups.get(page.slug) || [];
             return (
               <div
@@ -108,7 +122,7 @@ export default async function HomePage() {
           })}
         </div>
 
-        {topLevelPages?.length === 0 && (
+        {top.length === 0 && (
           <div className="text-center py-12">
             <p className="text-gray-500">No content available yet.</p>
             <Link

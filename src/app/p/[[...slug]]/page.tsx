@@ -25,26 +25,28 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
   }
 
   // Build breadcrumb trail
-  const breadcrumb: any[] = [];
+  interface PolicyNav { slug: string; title: string; parent_slug: string | null; }
+  const breadcrumb: PolicyNav[] = [];
   let tempSlug: string | null = actualSlug;
 
   while (tempSlug) {
-    const response: any = await supa
+    const { data } = await supa
       .from('policies')
       .select('slug,title,parent_slug')
       .eq('slug', tempSlug)
       .single();
+    const policyNode = data as PolicyNav | null;
 
-    if (response.data) {
-      breadcrumb.unshift(response.data);
-      tempSlug = response.data.parent_slug;
+    if (policyNode) {
+      breadcrumb.unshift(policyNode);
+      tempSlug = policyNode.parent_slug;
     } else {
       tempSlug = null;
     }
   }
 
   // Build URL path from breadcrumb
-  const buildPath = (items: any[], endIndex: number) => {
+  const buildPath = (items: PolicyNav[], endIndex: number): string => {
     return '/p/' + items.slice(0, endIndex + 1).map(item => item.slug).join('/');
   };
 
@@ -119,7 +121,7 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
           {/* Right sidebar navigation */}
           <aside className="hidden lg:block w-80 border-l border-gray-200 bg-gray-50 sticky top-16 h-screen overflow-y-auto">
             <div className="p-6">
-              <SidebarNav items={allPages || []} currentSlug={actualSlug} />
+              <SidebarNav items={allPages || []} />
             </div>
           </aside>
         </div>
