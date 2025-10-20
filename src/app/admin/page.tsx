@@ -32,24 +32,25 @@ export default function AdminPage() {
   }, []);
 
   // Build tree structure
-  const buildTree = (policies: Policy[]): any[] => {
-    const tree: any[] = [];
-    const map = new Map<string, any>();
+  interface PolicyTree extends Policy { children: PolicyTree[] }
+  const buildTree = (policies: Policy[]): PolicyTree[] => {
+    const tree: PolicyTree[] = [];
+    const map = new Map<string, PolicyTree>();
 
     // Create a map of all policies
     policies.forEach(p => {
       map.set(p.slug, { ...p, children: [] });
     });
 
-    // Build the tree
-    policies.forEach(p => {
-      const node = map.get(p.slug);
-      if (p.parent_slug && map.has(p.parent_slug)) {
-        map.get(p.parent_slug).children.push(node);
-      } else {
-        tree.push(node);
-      }
-    });
+  // Build the tree
+  policies.forEach(p => {
+    const node = map.get(p.slug)!;
+    if (p.parent_slug && map.has(p.parent_slug)) {
+      map.get(p.parent_slug)!.children!.push(node);
+    } else {
+      tree.push(node);
+    }
+  });
 
     return tree;
   };
@@ -108,7 +109,7 @@ export default function AdminPage() {
   }
 
   // Recursive tree rendering
-  const TreeNode = ({ node, level = 0 }: { node: any; level?: number }) => (
+  const TreeNode = ({ node, level = 0 }: { node: PolicyTree; level?: number }) => (
     <li className="list-none">
       <button
         className="underline hover:text-blue-600 block w-full text-left"
@@ -119,7 +120,7 @@ export default function AdminPage() {
       </button>
       {node.children && node.children.length > 0 && (
         <ul className="mt-1">
-          {node.children.map((child: any) => (
+          {node.children.map((child: PolicyTree) => (
             <TreeNode key={child.slug} node={child} level={level + 1} />
           ))}
         </ul>

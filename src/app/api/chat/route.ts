@@ -120,7 +120,7 @@ export async function POST(req: Request) {
     }
 
     // Augment vector matches with keyword hits for recall
-    let augmentedMatches: PolicyMatch[] = (matches as PolicyMatch[]) || [];
+    const augmentedMatches: PolicyMatch[] = (matches as PolicyMatch[]) || [];
     try {
       const tokens = (message.toLowerCase().match(/[a-z0-9]+/g) || []) as string[];
       const keywords = Array.from(new Set(tokens.filter((w: string) => w.length >= 3))).slice(0, 5);
