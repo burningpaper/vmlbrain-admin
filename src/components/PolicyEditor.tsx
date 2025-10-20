@@ -74,12 +74,6 @@ export default function PolicyEditor({
     editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
   }, [editor]);
 
-  const addImage = useCallback(() => {
-    const url = window.prompt('Image URL (or paste/drag an image directly):');
-    if (url) {
-      editor?.chain().focus().setImage({ src: url }).run();
-    }
-  }, [editor]);
 
   const insertImageFromFile = useCallback(() => {
     const input = document.createElement('input');
@@ -96,7 +90,7 @@ export default function PolicyEditor({
       }
     };
     input.click();
-  }, [editor]);
+  }, [editor, token]);
 
   // Update editor content when value prop changes
   useEffect(() => {

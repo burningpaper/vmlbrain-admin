@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(bytes);
 
     // Upload to Supabase Storage
-    const { data, error } = await supaAdmin.storage
+    const { error } = await supaAdmin.storage
       .from('policy-assets')
       .upload(filename, buffer, {
         contentType: file.type,

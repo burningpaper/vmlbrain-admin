@@ -104,10 +104,11 @@ export async function POST(req: Request) {
       chunksCreated: chunks.length 
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error generating embeddings:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ 
-      error: error.message || 'Internal server error' 
+      error: message 
     }, { status: 500 });
   }
 }

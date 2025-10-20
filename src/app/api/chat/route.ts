@@ -6,6 +6,10 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+type PolicyMatch = { policy_slug: string; content: string; chunk_index?: number; id?: number; similarity?: number };
+type PolicyMeta = { slug: string; title: string };
+type KPolicy = { slug: string; title: string; summary: string | null; body_md: string | null };
+
 export async function POST(req: Request) {
   try {
     const { message } = await req.json();
@@ -75,8 +79,9 @@ export async function POST(req: Request) {
           .limit(5);
 
         if (!kwError && kwPolicies && kwPolicies.length > 0) {
-          const fallbackContext = kwPolicies
-            .map((p: any) => `[From "${p.title}"]\n${clean(`${p.title}\n\n${p.summary || ''}\n\n${p.body_md || ''}`)}`)
+          const kps = (kwPolicies as KPolicy[] | null) || [];
+          const fallbackContext = kps
+            .map((p: KPolicy) => `[From "${p.title}"]\n${clean(`${p.title}\n\n${p.summary || ''}\n\n${p.body_md || ''}`)}`)
             .join('\n\n');
 
           const completion = await openai.chat.completions.create({
@@ -98,7 +103,7 @@ export async function POST(req: Request) {
           });
 
           const answer = completion.choices[0].message.content || 'No answer generated';
-          const sources = kwPolicies.map((p: any) => ({
+          const sources = kps.map((p: KPolicy) => ({
             slug: p.slug,
             title: p.title,
             url: `/p/${p.slug}`,
@@ -115,7 +120,7 @@ export async function POST(req: Request) {
     }
 
     // Augment vector matches with keyword hits for recall
-    let augmentedMatches = matches as any[];
+    let augmentedMatches: PolicyMatch[] = (matches as PolicyMatch[]) || [];
     try {
       const tokens = (message.toLowerCase().match(/[a-z0-9]+/g) || []) as string[];
       const keywords = Array.from(new Set(tokens.filter((w: string) => w.length >= 3))).slice(0, 5);
@@ -151,11 +156,12 @@ export async function POST(req: Request) {
           .limit(5);
         if (kwPolicies && kwPolicies.length > 0) {
           const clean = (s: string) => (s || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-          const kwMatches = kwPolicies.map((p: any) => ({
+          const kps2 = (kwPolicies as KPolicy[] | null) || [];
+          const kwMatches = kps2.map((p: KPolicy) => ({
             policy_slug: p.slug,
             content: clean(`${p.title}\n\n${p.summary || ''}\n\n${p.body_md || ''}`).slice(0, 1200),
           }));
-          const seen = new Set(augmentedMatches.map((m: any) => m.policy_slug));
+          const seen = new Set(augmentedMatches.map((m: PolicyMatch) => m.policy_slug));
           for (const km of kwMatches) {
             if (!seen.has(km.policy_slug)) {
               augmentedMatches.push(km);
@@ -169,19 +175,20 @@ export async function POST(req: Request) {
     }
 
     // Get unique policy titles for sources
-    const uniquePolicySlugs = [...new Set(augmentedMatches.map((m: any) => m.policy_slug))];
+    const uniquePolicySlugs = [...new Set(augmentedMatches.map((m: PolicyMatch) => m.policy_slug))];
     const { data: policies } = await supaAdmin
       .from('policies')
       .select('slug, title')
       .in('slug', uniquePolicySlugs);
 
+    const policyList = (policies as PolicyMeta[] | null) || [];
     const policyTitles = new Map(
-      policies?.map((p: any) => [p.slug, p.title]) || []
+      policyList.map((p: PolicyMeta) => [p.slug, p.title])
     );
 
     // Build context from matches (vector + keyword-augmented)
     const context = augmentedMatches
-      .map((match: any) => {
+      .map((match: PolicyMatch) => {
         const policyTitle = policyTitles.get(match.policy_slug) || match.policy_slug;
         return `[From "${policyTitle}"]\n${match.content}`;
       })
@@ -222,10 +229,11 @@ export async function POST(req: Request) {
       sources,
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Chat error:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ 
-      error: error.message || 'Internal server error' 
+      error: message 
     }, { status: 500 });
   }
 }

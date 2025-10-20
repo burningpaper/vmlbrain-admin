@@ -64,7 +64,7 @@ export default function ChatWidget() {
           },
         ]);
       }
-    } catch (error) {
+    } catch {
       setMessages(prev => [
         ...prev,
         {
