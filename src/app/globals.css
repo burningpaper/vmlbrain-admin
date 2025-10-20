@@ -24,3 +24,45 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Tiptap table styling */
+.ProseMirror table {
+  border-collapse: collapse;
+  border: 2px solid #d1d5db;
+  margin: 1em 0;
+  width: 100%;
+}
+
+.ProseMirror th {
+  border: 1px solid #d1d5db;
+  background-color: #f3f4f6;
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+}
+
+.ProseMirror td {
+  border: 1px solid #d1d5db;
+  padding: 0.75rem;
+}
+
+/* Also apply to rendered content */
+article table {
+  border-collapse: collapse;
+  border: 2px solid #d1d5db;
+  margin: 1em 0;
+  width: 100%;
+}
+
+article th {
+  border: 1px solid #d1d5db;
+  background-color: #f3f4f6;
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+}
+
+article td {
+  border: 1px solid #d1d5db;
+  padding: 0.75rem;
+}
