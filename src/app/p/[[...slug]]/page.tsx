@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import SidebarNav from '@/components/SidebarNav';
+import BoxExplorer from '@/components/BoxExplorer';
 
 export default async function PolicyPage({ params }: { params: Promise<{ slug?: string[] }> }) {
   // Get the last segment as the actual slug
@@ -119,10 +120,17 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
             </article>
           </main>
 
-          {/* Right sidebar navigation */}
+          {/* Right sidebar: navigation + related files */}
           <aside className="hidden lg:block w-80 border-l border-gray-200 bg-gray-50 sticky top-16 h-screen overflow-y-auto">
-            <div className="p-6">
+            <div className="p-6 space-y-6">
               <SidebarNav items={allPages || []} />
+              {/* Related files from Box (read/preview) */}
+              {('box_folder_id' in policy || 'box_file_ids' in policy) && (
+                <BoxExplorer
+                  folderId={(policy as any).box_folder_id || '0'}
+                  fileIds={(policy as any).box_file_ids || []}
+                />
+              )}
             </div>
           </aside>
         </div>

@@ -18,6 +18,9 @@ export default function AdminPage() {
   const [bodyHtml, setBodyHtml] = useState('<p></p>');
   const [parentSlug, setParentSlug] = useState('');
   const [token, setToken] = useState('');
+  // Box linking
+  const [boxFolderId, setBoxFolderId] = useState('');
+  const [boxFileIdsText, setBoxFileIdsText] = useState('');
 
   // Fetch all policies for the sidebar
   useEffect(() => {
@@ -71,6 +74,8 @@ export default function AdminPage() {
       setSummary(data.summary || '');
       setBodyHtml(data.body_md || '<p></p>');
       setParentSlug(data.parent_slug || '');
+      setBoxFolderId((data as any).box_folder_id || '');
+      setBoxFileIdsText(((data as any).box_file_ids || []).join(','));
     }
   }
 
@@ -92,6 +97,10 @@ export default function AdminPage() {
         summary,
         body_md: bodyHtml,
         parent_slug: parentSlug || null,
+        box_folder_id: boxFolderId || null,
+        box_file_ids: boxFileIdsText
+          ? boxFileIdsText.split(',').map((s) => s.trim()).filter(Boolean)
+          : null,
       }),
     });
     if (!res.ok) {
@@ -160,6 +169,8 @@ export default function AdminPage() {
               setSummary('');
               setBodyHtml('<p></p>');
               setParentSlug('');
+              setBoxFolderId('');
+              setBoxFileIdsText('');
             }}
           >
             + New Article
@@ -215,6 +226,41 @@ export default function AdminPage() {
             <p className="text-xs text-gray-500 mt-1">
               Select a parent to nest this page under another page
             </p>
+          </div>
+
+          {/* Box linking */}
+          <div className="mt-2 p-3 border rounded bg-gray-50">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="flex flex-col">
+                <label className="text-sm font-medium mb-1 text-gray-700">
+                  Box Folder ID (for Related Files panel)
+                </label>
+                <input
+                  className="w-full border p-2 rounded"
+                  placeholder="e.g. 0 or a specific folder id"
+                  value={boxFolderId}
+                  onChange={(e) => setBoxFolderId(e.target.value)}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Set to a specific Box folder ID to show a read/preview-only file tree on the article page.
+                </p>
+              </div>
+
+              <div className="flex flex-col">
+                <label className="text-sm font-medium mb-1 text-gray-700">
+                  Box File IDs (comma-separated)
+                </label>
+                <input
+                  className="w-full border p-2 rounded"
+                  placeholder="12345, 67890"
+                  value={boxFileIdsText}
+                  onChange={(e) => setBoxFileIdsText(e.target.value)}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Optional: add specific file IDs to link under the tree.
+                </p>
+              </div>
+            </div>
           </div>
 
           <PolicyEditor value={bodyHtml} onChange={setBodyHtml} token={token} />
