@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createRequire } from 'module';
 
+export const runtime = 'nodejs';
+
 type BoxDownscopeResult = { accessToken: string; expires_in?: number };
 
 // Minimal types to avoid any
