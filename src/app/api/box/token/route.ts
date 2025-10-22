@@ -1,30 +1,18 @@
 import { NextResponse } from 'next/server';
 import { createRequire } from 'module';
 
-/**
- * Minimal types to avoid any for Box SDK usage
- */
 type BoxDownscopeResult = { accessToken: string; expires_in?: number };
 
-type JwtConfigCtor = new (
-  cfg: {
-    clientID: string;
-    clientSecret: string;
-    appAuth: { keyID: string; privateKey: string; passphrase: string };
-    enterpriseID: string;
-  },
-  tokenStorage?: unknown
-) => unknown;
+// Minimal types to avoid any
+type UnknownCtor = new (cfg: Record<string, unknown>) => unknown;
 
-type BoxJwtAuthCtor = new (cfg: unknown) => {
-  downscopeToken: (scopes: string[], resource: string) => Promise<BoxDownscopeResult>;
+type AppAuthClient = {
+  exchangeToken: (scopes: string[], resource: string) => Promise<BoxDownscopeResult>;
 };
 
-type BoxDeveloperTokenAuthCtor = new (token: string) => {
-  downscopeToken?: (scopes: string[], resource: string) => Promise<BoxDownscopeResult>;
+type SDKInstance = {
+  getAppAuthClient: (type: 'enterprise' | 'user', id: string) => AppAuthClient;
 };
-
-type InMemoryTokenStorageCtor = new () => unknown;
 
 /**
  * POST /api/box/token
@@ -33,7 +21,8 @@ type InMemoryTokenStorageCtor = new () => unknown;
  */
 export async function POST(req: Request) {
   try {
-    const { folderId } = (await req.json()) as { folderId?: string };
+    const body = (await req.json()) as { folderId?: string };
+    const folderId = body?.folderId;
     if (!folderId) {
       return NextResponse.json({ error: 'folderId required' }, { status: 400 });
     }
@@ -53,34 +42,14 @@ export async function POST(req: Request) {
       (BOX_JWT_PRIVATE_KEY || '').includes('\\n')
         ? (BOX_JWT_PRIVATE_KEY as string).replace(/\\n/g, '\n')
         : (BOX_JWT_PRIVATE_KEY || '');
-
     const PUBLIC_KEY_ID = BOX_JWT_PUBLIC_KEY_ID || '';
 
-    // CommonJS require for box-node-sdk (class-based API)
     const cjsRequire = createRequire(process.cwd() + '/');
-    const mod = cjsRequire('box-node-sdk') as Record<string, unknown>;
+    const mod = cjsRequire('box-node-sdk') as unknown;
 
-    const BoxDeveloperTokenAuth = mod.BoxDeveloperTokenAuth as BoxDeveloperTokenAuthCtor | undefined;
-    const BoxJwtAuth = mod.BoxJwtAuth as BoxJwtAuthCtor | undefined;
-    const JwtConfig = mod.JwtConfig as JwtConfigCtor | undefined;
-    const InMemoryTokenStorage = mod.InMemoryTokenStorage as InMemoryTokenStorageCtor | undefined;
+    // Prefer CommonJS export (constructor function)
+    const BoxSDKCtor = mod as UnknownCtor;
 
-    // Optional: developer token path (local testing)
-    if (BOX_DEVELOPER_TOKEN && BoxDeveloperTokenAuth) {
-      const authDev = new BoxDeveloperTokenAuth(BOX_DEVELOPER_TOKEN);
-      if (typeof authDev.downscopeToken === 'function') {
-        const ds = await authDev.downscopeToken(
-          ['item_preview', 'item_download'],
-          `https://api.box.com/2.0/folders/${folderId}`
-        );
-        return NextResponse.json({
-          token: ds.accessToken,
-          expiresIn: ds.expires_in ?? 3600,
-        });
-      }
-      // Fallback to raw developer token
-      return NextResponse.json({ token: BOX_DEVELOPER_TOKEN, expiresIn: 3600 });
-    }
 
     // Validate required JWT envs for server auth
     if (
@@ -88,49 +57,50 @@ export async function POST(req: Request) {
       !BOX_CLIENT_SECRET ||
       !BOX_ENTERPRISE_ID ||
       !BOX_JWT_PRIVATE_KEY ||
-      !BOX_JWT_PASSPHRASE ||
-      !BoxJwtAuth ||
-      !JwtConfig
+      !BOX_JWT_PASSPHRASE
     ) {
       return NextResponse.json(
         {
           error:
-            'Box server auth misconfigured: env vars or SDK classes missing (required: BOX_CLIENT_ID/SECRET/ENTERPRISE_ID/JWT_PRIVATE_KEY/JWT_PASSPHRASE)',
+            'Box server auth misconfigured: env vars missing (BOX_CLIENT_ID/SECRET/ENTERPRISE_ID/JWT_PRIVATE_KEY/JWT_PASSPHRASE).',
         },
         { status: 500 }
       );
     }
 
-    // Build JwtConfig (optionally with in-memory token storage)
-    const tokenStorage = InMemoryTokenStorage ? new InMemoryTokenStorage() : undefined;
-    const jwtCfg = tokenStorage
-      ? new JwtConfig(
-          {
-            clientID: BOX_CLIENT_ID,
-            clientSecret: BOX_CLIENT_SECRET,
-            appAuth: {
-              keyID: PUBLIC_KEY_ID,
-              privateKey: PRIVATE_KEY,
-              passphrase: BOX_JWT_PASSPHRASE,
-            },
-            enterpriseID: BOX_ENTERPRISE_ID,
-          },
-          tokenStorage
-        )
-      : new JwtConfig({
-          clientID: BOX_CLIENT_ID,
-          clientSecret: BOX_CLIENT_SECRET,
-          appAuth: {
-            keyID: PUBLIC_KEY_ID,
-            privateKey: PRIVATE_KEY,
-            passphrase: BOX_JWT_PASSPHRASE,
-          },
-          enterpriseID: BOX_ENTERPRISE_ID,
-        });
+    // Instantiate SDK (class constructor form) and get App Auth client
+    const sdkUnknown = new BoxSDKCtor({
+      clientID: BOX_CLIENT_ID,
+      clientSecret: BOX_CLIENT_SECRET,
+      appAuth: {
+        keyID: PUBLIC_KEY_ID,
+        privateKey: PRIVATE_KEY,
+        passphrase: BOX_JWT_PASSPHRASE,
+      },
+    }) as unknown;
 
-    // Instantiate JWT auth and downscope to preview/download for requested folder
-    const auth = new BoxJwtAuth(jwtCfg);
-    const tokenResponse = await auth.downscopeToken(
+    if (!sdkUnknown || typeof (sdkUnknown as Record<string, unknown>).getAppAuthClient !== 'function') {
+      return NextResponse.json(
+        { error: 'Box SDK misconfigured on server (getAppAuthClient not available)' },
+        { status: 500 }
+      );
+    }
+    const sdk = sdkUnknown as unknown as SDKInstance;
+
+    const clientUnknown = (sdk as unknown as Record<string, unknown>).getAppAuthClient
+      ? (sdk as unknown as SDKInstance).getAppAuthClient('enterprise', BOX_ENTERPRISE_ID)
+      : undefined;
+
+    if (!clientUnknown || typeof (clientUnknown as Record<string, unknown>).exchangeToken !== 'function') {
+      return NextResponse.json(
+        { error: 'Box SDK misconfigured on server (exchangeToken not available)' },
+        { status: 500 }
+      );
+    }
+    const client = clientUnknown as AppAuthClient;
+
+    // Downscope to preview/download for the requested folder
+    const tokenResponse = await client.exchangeToken(
       ['item_preview', 'item_download'],
       `https://api.box.com/2.0/folders/${folderId}`
     );
@@ -140,9 +110,36 @@ export async function POST(req: Request) {
       expiresIn: tokenResponse.expires_in ?? 3600,
     });
   } catch (err) {
-    // Keep error typed as unknown to satisfy no-explicit-any
-    // eslint-disable-next-line no-console
-    console.error('Box token error:', err);
-    return NextResponse.json({ error: 'Failed to create Box token' }, { status: 500 });
+    // Try to surface a safe error message to help diagnose env/config issues on live
+    let reason = 'unknown';
+    if (err && typeof err === 'object') {
+      const anyErr = err as Record<string, unknown>;
+      // Box SDK errors can include response/response.body
+      const body = anyErr?.response as { body?: unknown } | undefined;
+      if (body?.body) {
+        reason = JSON.stringify(body.body);
+      } else if ('message' in anyErr && typeof anyErr.message === 'string') {
+        reason = anyErr.message;
+      } else {
+        try {
+          reason = JSON.stringify(anyErr);
+        } catch {
+          reason = String(err);
+        }
+      }
+    } else {
+      reason = String(err);
+    }
+
+    console.error('Box token error:', reason);
+    return NextResponse.json(
+      {
+        error: 'Failed to create Box token',
+        reason,
+        hint:
+          'Verify BOX_CLIENT_ID/BOX_CLIENT_SECRET/BOX_ENTERPRISE_ID/BOX_JWT_PRIVATE_KEY/BOX_JWT_PASSPHRASE/BOX_JWT_PUBLIC_KEY_ID on Vercel. Ensure PUBLIC_KEY_ID (KID) matches the key in Box app.',
+      },
+      { status: 500 }
+    );
   }
 }
