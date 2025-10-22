@@ -5,6 +5,9 @@ import Image from 'next/image';
 import SidebarNav from '@/components/SidebarNav';
 import BoxExplorer from '@/components/BoxExplorer';
 
+export const revalidate = 0;
+export const dynamic = 'force-dynamic';
+
 export default async function PolicyPage({ params }: { params: Promise<{ slug?: string[] }> }) {
   // Get the last segment as the actual slug
   const { slug } = await params;
