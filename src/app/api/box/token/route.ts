@@ -16,6 +16,15 @@ type SDKInstance = {
   getAppAuthClient: (type: 'enterprise' | 'user', id: string) => AppAuthClient;
 };
 
+type BoxPreconfig = {
+  boxAppSettings: {
+    clientID: string;
+    clientSecret: string;
+    appAuth: { publicKeyID: string; privateKey: string; passphrase: string };
+  };
+  enterpriseID: string;
+};
+
 /**
  * POST /api/box/token
  * Body: { folderId: string }
@@ -47,8 +56,8 @@ export async function POST(req: Request) {
     const PUBLIC_KEY_ID = BOX_JWT_PUBLIC_KEY_ID || '';
 
     // Prefer dynamic import so Next packs the server chunk correctly on Node runtime
-    const { default: BoxSDK } = await import('box-node-sdk');
-    const BoxSDKCtor = BoxSDK as unknown as UnknownCtor;
+    const BoxSDKMod = await import('box-node-sdk');
+    const BoxSDKAny = (BoxSDKMod as unknown as { default?: unknown }).default ?? BoxSDKMod;
 
 
     // Validate required JWT envs for server auth
@@ -68,36 +77,32 @@ export async function POST(req: Request) {
       );
     }
 
-    // Instantiate SDK (class constructor form) and get App Auth client
-    const sdkUnknown = new BoxSDKCtor({
-      clientID: BOX_CLIENT_ID,
-      clientSecret: BOX_CLIENT_SECRET,
-      appAuth: {
-        keyID: PUBLIC_KEY_ID,
-        privateKey: PRIVATE_KEY,
-        passphrase: BOX_JWT_PASSPHRASE,
+    // Instantiate SDK using preconfigured instance (recommended for JWT)
+    const getPreconfiguredInstance =
+      (BoxSDKAny as unknown as { getPreconfiguredInstance?: (cfg: BoxPreconfig) => SDKInstance })
+        .getPreconfiguredInstance;
+
+    if (typeof getPreconfiguredInstance !== 'function') {
+      return NextResponse.json(
+        { error: 'Box SDK misconfigured on server (getPreconfiguredInstance not available)' },
+        { status: 500 }
+      );
+    }
+
+    const sdk = getPreconfiguredInstance({
+      boxAppSettings: {
+        clientID: BOX_CLIENT_ID as string,
+        clientSecret: BOX_CLIENT_SECRET as string,
+        appAuth: {
+          publicKeyID: PUBLIC_KEY_ID,
+          privateKey: PRIVATE_KEY,
+          passphrase: BOX_JWT_PASSPHRASE as string,
+        },
       },
-    }) as unknown;
+      enterpriseID: BOX_ENTERPRISE_ID as string,
+    });
 
-    if (!sdkUnknown || typeof (sdkUnknown as Record<string, unknown>).getAppAuthClient !== 'function') {
-      return NextResponse.json(
-        { error: 'Box SDK misconfigured on server (getAppAuthClient not available)' },
-        { status: 500 }
-      );
-    }
-    const sdk = sdkUnknown as unknown as SDKInstance;
-
-    const clientUnknown = (sdk as unknown as Record<string, unknown>).getAppAuthClient
-      ? (sdk as unknown as SDKInstance).getAppAuthClient('enterprise', BOX_ENTERPRISE_ID)
-      : undefined;
-
-    if (!clientUnknown || typeof (clientUnknown as Record<string, unknown>).exchangeToken !== 'function') {
-      return NextResponse.json(
-        { error: 'Box SDK misconfigured on server (exchangeToken not available)' },
-        { status: 500 }
-      );
-    }
-    const client = clientUnknown as AppAuthClient;
+    const client = sdk.getAppAuthClient('enterprise', BOX_ENTERPRISE_ID as string);
 
     // Downscope to preview/download for the requested folder
     const tokenResponse = await client.exchangeToken(
