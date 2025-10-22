@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import 'server-only';
-import BoxSDK from 'box-node-sdk';
 
 export const runtime = 'nodejs';
 
@@ -47,7 +46,8 @@ export async function POST(req: Request) {
         : (BOX_JWT_PRIVATE_KEY || '');
     const PUBLIC_KEY_ID = BOX_JWT_PUBLIC_KEY_ID || '';
 
-    // Prefer CommonJS export (constructor function)
+    // Prefer dynamic import so Next packs the server chunk correctly on Node runtime
+    const { default: BoxSDK } = await import('box-node-sdk');
     const BoxSDKCtor = BoxSDK as unknown as UnknownCtor;
 
 
