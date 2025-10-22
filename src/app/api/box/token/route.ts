@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createRequire } from 'module';
+import 'server-only';
+import BoxSDK from 'box-node-sdk';
 
 export const runtime = 'nodejs';
 
@@ -46,11 +47,8 @@ export async function POST(req: Request) {
         : (BOX_JWT_PRIVATE_KEY || '');
     const PUBLIC_KEY_ID = BOX_JWT_PUBLIC_KEY_ID || '';
 
-    const cjsRequire = createRequire(process.cwd() + '/');
-    const mod = cjsRequire('box-node-sdk') as unknown;
-
     // Prefer CommonJS export (constructor function)
-    const BoxSDKCtor = mod as UnknownCtor;
+    const BoxSDKCtor = BoxSDK as unknown as UnknownCtor;
 
 
     // Validate required JWT envs for server auth
