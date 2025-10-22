@@ -36,7 +36,7 @@ export default function PolicyEditor({
   token: string;
 }) {
   // Track selection changes to force React re-render so contextual toolbars update on existing articles too
-  const [_uiTick, setUiTick] = useState(0);
+  const [, setUiTick] = useState(0);
 
   const editor = useEditor({
     extensions: [
@@ -209,30 +209,10 @@ export default function PolicyEditor({
   const canToggleItalic = !!editor?.can().chain().focus().toggleItalic().run();
   const canToggleStrike = !!editor?.can().chain().focus().toggleStrike().run();
   // Only gate undo/redo with can(); allow format buttons to run our robust handlers
-  const canH1 = true;
-  const canH2 = true;
-  const canH3 = true;
-  const canBullet = true;
-  const canOrdered = true;
 
   // Table command availability (always render toolbar; disable when not applicable)
-  const canAddRowBefore   = !!editor?.can().chain().focus().addRowBefore().run();
-  const canAddRowAfter    = !!editor?.can().chain().focus().addRowAfter().run();
-  const canDeleteRow      = !!editor?.can().chain().focus().deleteRow().run();
-  const canAddColumnBefore= !!editor?.can().chain().focus().addColumnBefore().run();
-  const canAddColumnAfter = !!editor?.can().chain().focus().addColumnAfter().run();
-  const canDeleteColumn   = !!editor?.can().chain().focus().deleteColumn().run();
-  const canToggleHeader   = !!editor?.can().chain().focus().toggleHeaderRow().run();
-  const canMergeCells     = !!editor?.can().chain().focus().mergeCells().run();
-  const canSplitCell      = !!editor?.can().chain().focus().splitCell().run();
-  const canDeleteTable    = !!editor?.can().chain().focus().deleteTable().run();
 
   // Consider toolbar "enabled" when caret is anywhere in a table
-  const inTable = !!editor && (
-    editor.isActive('table') ||
-    editor.isActive('tableCell') ||
-    editor.isActive('tableHeader')
-  );
 
   return (
     <div className="space-y-2 border rounded-lg p-4 bg-white" data-color-mode="light">

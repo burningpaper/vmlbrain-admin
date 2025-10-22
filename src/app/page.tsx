@@ -1,15 +1,12 @@
 import { supa } from '@/lib/supabase';
 import Link from 'next/link';
 import Image from 'next/image';
-import { noStore } from 'next/cache';
 
 export const revalidate = 0;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
 export default async function HomePage() {
-  // Disable all caching at runtime on Vercel/Next
-  noStore();
   // Get all top-level pages (no parent)
   const { data: topLevelPages } = await supa
     .from('policies')
