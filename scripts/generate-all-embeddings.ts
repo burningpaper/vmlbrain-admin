@@ -73,16 +73,17 @@ async function generateEmbeddings() {
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`API error: ${error}`);
+        const apiText = await response.text();
+        throw new Error(`API error: ${apiText}`);
       }
 
       const result = await response.json();
       console.log(`  ✅ Created ${result.chunksCreated} embedding chunks\n`);
       successCount++;
 
-    } catch (error: any) {
-      console.error(`  ❌ Failed: ${error.message}\n`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`  ❌ Failed: ${msg}\n`);
       failCount++;
     }
 
@@ -107,7 +108,8 @@ async function generateEmbeddings() {
 }
 
 // Run the script
-generateEmbeddings().catch(error => {
-  console.error('💥 Unexpected error:', error);
+generateEmbeddings().catch((e: unknown) => {
+  // eslint-disable-next-line no-console
+  console.error('💥 Unexpected error:', e);
   process.exit(1);
 });

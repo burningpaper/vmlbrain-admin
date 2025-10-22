@@ -6,8 +6,11 @@ import type { NextRequest } from 'next/server';
  * This complements page-level dynamic/revalidate settings and the Supabase
  * client no-store fetch override to guarantee fresh data on live.
  */
-export function middleware(_req: NextRequest) {
+export function middleware(req: NextRequest) {
   const res = NextResponse.next();
+
+  // Include request info to satisfy strict lint rules (and aid diagnostics)
+  res.headers.set('X-Pathname', req.nextUrl.pathname);
 
   // Standard cache-busting headers
   res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');

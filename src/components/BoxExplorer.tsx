@@ -2,9 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+type BoxContentExplorer = {
+  show: (folderId: string, token: string, options: Record<string, unknown>) => void;
+};
+
 declare global {
   interface Window {
-    Box?: any;
+    Box?: {
+      ContentExplorer: new () => BoxContentExplorer;
+    };
   }
 }
 
@@ -96,9 +102,10 @@ export default function BoxExplorer({ folderId, fileIds, className }: Props) {
             sortableColumns: true,
           },
         });
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error('BoxExplorer error:', e);
-        setError(e?.message || 'Failed to load Box content');
+        const msg = e instanceof Error ? e.message : String(e);
+        setError(msg || 'Failed to load Box content');
       }
     }
 

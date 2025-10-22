@@ -71,11 +71,13 @@ export default function AdminPage() {
     if (!error && data) {
       setSlug(data.slug);
       setTitle(data.title);
-      setSummary(data.summary || '');
-      setBodyHtml(data.body_md || '<p></p>');
-      setParentSlug(data.parent_slug || '');
-      setBoxFolderId((data as any).box_folder_id || '');
-      setBoxFileIdsText(((data as any).box_file_ids || []).join(','));
+      setSummary((data as { summary?: string | null }).summary || '');
+      setBodyHtml((data as { body_md?: string | null }).body_md || '<p></p>');
+      setParentSlug((data as { parent_slug?: string | null }).parent_slug || '');
+      const boxFolder = (data as { box_folder_id?: string | null }).box_folder_id || '';
+      const boxFiles = (data as { box_file_ids?: string[] | null }).box_file_ids || [];
+      setBoxFolderId(boxFolder);
+      setBoxFileIdsText(boxFiles.join(','));
     }
   }
 

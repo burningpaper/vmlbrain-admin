@@ -9,6 +9,17 @@ export const revalidate = 0;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
+interface PolicyRow {
+  slug: string;
+  title: string;
+  summary: string | null;
+  body_md: string;
+  parent_slug: string | null;
+  status?: string;
+  box_folder_id?: string | null;
+  box_file_ids?: string[] | null;
+}
+
 export default async function PolicyPage({ params }: { params: Promise<{ slug?: string[] }> }) {
   // Get the last segment as the actual slug
   const { slug } = await params;
@@ -19,16 +30,17 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
     notFound();
   }
 
-  const { data: policy, error } = await supa
+  const { data, error } = await supa
     .from('policies')
     .select('*')
     .eq('slug', actualSlug)
     .eq('status', 'approved')
     .single();
 
-  if (error || !policy) {
+  if (error || !data) {
     notFound();
   }
+  const policy = data as PolicyRow;
 
   // Build breadcrumb trail
   interface PolicyNav { slug: string; title: string; parent_slug: string | null; }
@@ -129,10 +141,10 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
             <div className="p-6 space-y-6">
               <SidebarNav items={allPages || []} />
               {/* Related files from Box (read/preview) */}
-              {('box_folder_id' in policy || 'box_file_ids' in policy) && (
+              {(policy.box_folder_id != null || policy.box_file_ids != null) && (
                 <BoxExplorer
-                  folderId={(policy as any).box_folder_id || '0'}
-                  fileIds={(policy as any).box_file_ids || []}
+                  folderId={policy.box_folder_id ?? '0'}
+                  fileIds={policy.box_file_ids ?? []}
                 />
               )}
             </div>
