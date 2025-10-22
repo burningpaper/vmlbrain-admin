@@ -10,7 +10,7 @@ export default async function HomePage() {
   const { data: topLevelPages } = await supa
     .from('policies')
     .select('slug, title, summary')
-    .is('parent_slug', null)
+    .or('parent_slug.is.null,parent_slug.eq.')
     .eq('status', 'approved')
     .order('title');
 

@@ -1,10 +1,10 @@
 'use client';
 
-import { EditorContent, useEditor } from '@tiptap/react';
+import { EditorContent, useEditor, BubbleMenu } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
-import { Table } from '@tiptap/extension-table';           // <-- named import
+import Table from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
@@ -13,7 +13,7 @@ import BulletList from '@tiptap/extension-bullet-list';
 import OrderedList from '@tiptap/extension-ordered-list';
 import ListItem from '@tiptap/extension-list-item';
 import HardBreak from '@tiptap/extension-hard-break';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 
 async function uploadFile(file: File, token: string): Promise<string> {
@@ -35,10 +35,13 @@ export default function PolicyEditor({
   onChange: (html: string) => void;
   token: string;
 }) {
+  // Track selection changes to force React re-render so contextual toolbars update on existing articles too
+  const [_uiTick, setUiTick] = useState(0);
+
   const editor = useEditor({
     extensions: [
       // Disable built-ins we override explicitly
-      StarterKit.configure({ heading: false, bulletList: false, orderedList: false, listItem: false }),
+      StarterKit.configure({ heading: false, bulletList: false, orderedList: false, listItem: false, hardBreak: false }),
       Heading.configure({ levels: [1, 2, 3, 4, 5, 6] }),
       BulletList,
       OrderedList,
@@ -55,7 +58,9 @@ export default function PolicyEditor({
     ],
     immediatelyRender: false,
     content: value || '<p></p>',
+    onCreate: () => setUiTick((t) => t + 1),
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
+    onSelectionUpdate: () => setUiTick((t) => t + 1),
     editorProps: {
       handlePaste: (_view, event) => {
         const items = event.clipboardData?.items;
@@ -113,6 +118,57 @@ export default function PolicyEditor({
     ch.toggleOrderedList().run();
   }, [editor]);
 
+  // Table commands (must be defined before JSX uses them)
+  const addRowBefore = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().addRowBefore().run();
+  }, [editor]);
+
+  const addRowAfter = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().addRowAfter().run();
+  }, [editor]);
+
+  const deleteRow = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().deleteRow().run();
+  }, [editor]);
+
+  const addColumnBefore = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().addColumnBefore().run();
+  }, [editor]);
+
+  const addColumnAfter = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().addColumnAfter().run();
+  }, [editor]);
+
+  const deleteColumn = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().deleteColumn().run();
+  }, [editor]);
+
+  const toggleHeaderRow = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().toggleHeaderRow().run();
+  }, [editor]);
+
+  const mergeCells = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().mergeCells().run();
+  }, [editor]);
+
+  const splitCell = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().splitCell().run();
+  }, [editor]);
+
+  const deleteTable = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().deleteTable().run();
+  }, [editor]);
+
   const addLink = useCallback(() => {
     const url = window.prompt('URL:');
     if (!url) return;
@@ -148,7 +204,7 @@ export default function PolicyEditor({
     }
   }, [editor, value]);
 
-  // Pre-compute command availability to avoid no-op clicks
+  // Pre-compute command availability (enables/disables buttons)
   const canToggleBold = !!editor?.can().chain().focus().toggleBold().run();
   const canToggleItalic = !!editor?.can().chain().focus().toggleItalic().run();
   const canToggleStrike = !!editor?.can().chain().focus().toggleStrike().run();
@@ -158,6 +214,25 @@ export default function PolicyEditor({
   const canH3 = true;
   const canBullet = true;
   const canOrdered = true;
+
+  // Table command availability (always render toolbar; disable when not applicable)
+  const canAddRowBefore   = !!editor?.can().chain().focus().addRowBefore().run();
+  const canAddRowAfter    = !!editor?.can().chain().focus().addRowAfter().run();
+  const canDeleteRow      = !!editor?.can().chain().focus().deleteRow().run();
+  const canAddColumnBefore= !!editor?.can().chain().focus().addColumnBefore().run();
+  const canAddColumnAfter = !!editor?.can().chain().focus().addColumnAfter().run();
+  const canDeleteColumn   = !!editor?.can().chain().focus().deleteColumn().run();
+  const canToggleHeader   = !!editor?.can().chain().focus().toggleHeaderRow().run();
+  const canMergeCells     = !!editor?.can().chain().focus().mergeCells().run();
+  const canSplitCell      = !!editor?.can().chain().focus().splitCell().run();
+  const canDeleteTable    = !!editor?.can().chain().focus().deleteTable().run();
+
+  // Consider toolbar "enabled" when caret is anywhere in a table
+  const inTable = !!editor && (
+    editor.isActive('table') ||
+    editor.isActive('tableCell') ||
+    editor.isActive('tableHeader')
+  );
 
   return (
     <div className="space-y-2 border rounded-lg p-4 bg-white" data-color-mode="light">
@@ -283,43 +358,41 @@ export default function PolicyEditor({
         >
           ↷ Redo
         </button>
-      </div>
 
-      {editor?.isActive('table') && (
-        <div className="flex gap-2 flex-wrap border-b pb-3 pt-2">
-          <span className="text-xs font-medium text-gray-500 mr-2">Table tools:</span>
+        <div className="w-px bg-gray-300"></div>
 
-          <button type="button" onClick={addRowBefore}
-            className="px-2 py-1 text-xs rounded bg-gray-50 hover:bg-gray-100 border">+ Row ↑</button>
-          <button type="button" onClick={addRowAfter}
-            className="px-2 py-1 text-xs rounded bg-gray-50 hover:bg-gray-100 border">+ Row ↓</button>
-          <button type="button" onClick={deleteRow}
-            className="px-2 py-1 text-xs rounded bg-gray-50 hover:bg-gray-100 border">Delete Row</button>
+</div>
 
-          <div className="w-px bg-gray-300 mx-1" />
-
-          <button type="button" onClick={addColumnBefore}
-            className="px-2 py-1 text-xs rounded bg-gray-50 hover:bg-gray-100 border">+ Col ←</button>
-          <button type="button" onClick={addColumnAfter}
-            className="px-2 py-1 text-xs rounded bg-gray-50 hover:bg-gray-100 border">+ Col →</button>
-          <button type="button" onClick={deleteColumn}
-            className="px-2 py-1 text-xs rounded bg-gray-50 hover:bg-gray-100 border">Delete Col</button>
+      <BubbleMenu
+        editor={editor}
+        pluginKey="table-bubble-menu"
+        tippyOptions={{ placement: 'top', duration: 150 }}
+        shouldShow={({ editor }) =>
+          editor.isActive('table') || editor.isActive('tableCell') || editor.isActive('tableHeader')
+        }
+      >
+        <div className="flex flex-wrap gap-1 bg-white/95 border rounded shadow p-1">
+          <button type="button" onClick={addRowBefore} className="px-2 py-0.5 text-xs rounded border">+ Row ↑</button>
+          <button type="button" onClick={addRowAfter} className="px-2 py-0.5 text-xs rounded border">+ Row ↓</button>
+          <button type="button" onClick={deleteRow} className="px-2 py-0.5 text-xs rounded border">Del Row</button>
 
           <div className="w-px bg-gray-300 mx-1" />
 
-          <button type="button" onClick={toggleHeaderRow}
-            className="px-2 py-1 text-xs rounded bg-gray-50 hover:bg-gray-100 border">Toggle Header</button>
-          <button type="button" onClick={mergeCells}
-            className="px-2 py-1 text-xs rounded bg-gray-50 hover:bg-gray-100 border">Merge</button>
-          <button type="button" onClick={splitCell}
-            className="px-2 py-1 text-xs rounded bg-gray-50 hover:bg-gray-100 border">Split</button>
+          <button type="button" onClick={addColumnBefore} className="px-2 py-0.5 text-xs rounded border">+ Col ←</button>
+          <button type="button" onClick={addColumnAfter} className="px-2 py-0.5 text-xs rounded border">+ Col →</button>
+          <button type="button" onClick={deleteColumn} className="px-2 py-0.5 text-xs rounded border">Del Col</button>
 
           <div className="w-px bg-gray-300 mx-1" />
 
-          <button type="button" onClick={deleteTable}
-            className="px-2 py-1 text-xs rounded bg-red-50 hover:bg-red-100 border border-red-200 text-red-700">Delete Table</button>
+          <button type="button" onClick={toggleHeaderRow} className="px-2 py-0.5 text-xs rounded border">Header</button>
+          <button type="button" onClick={mergeCells} className="px-2 py-0.5 text-xs rounded border">Merge</button>
+          <button type="button" onClick={splitCell} className="px-2 py-0.5 text-xs rounded border">Split</button>
+
+          <div className="w-px bg-gray-300 mx-1" />
+
+          <button type="button" onClick={deleteTable} className="px-2 py-0.5 text-xs rounded border text-red-700">Del Tbl</button>
         </div>
-      )}
+      </BubbleMenu>
 
       <div className="min-h-[400px]">
         <EditorContent editor={editor} />
