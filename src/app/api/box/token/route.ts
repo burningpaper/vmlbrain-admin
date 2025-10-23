@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import 'server-only';
+import { createRequire } from 'module';
 
 export const runtime = 'nodejs';
 
@@ -16,14 +17,12 @@ type SDKInstance = {
   getAppAuthClient: (type: 'enterprise' | 'user', id: string) => AppAuthClient;
 };
 
-type BoxPreconfig = {
-  boxAppSettings: {
-    clientID: string;
-    clientSecret: string;
-    appAuth: { publicKeyID: string; privateKey: string; passphrase: string };
-  };
-  enterpriseID: string;
-};
+type BoxSDKCtor = new (cfg: {
+  clientID: string;
+  clientSecret: string;
+  appAuth: { keyID: string; privateKey: string; passphrase: string };
+}) => SDKInstance;
+
 
 /**
  * POST /api/box/token
@@ -55,9 +54,7 @@ export async function POST(req: Request) {
         : (BOX_JWT_PRIVATE_KEY || '');
     const PUBLIC_KEY_ID = BOX_JWT_PUBLIC_KEY_ID || '';
 
-    // Prefer dynamic import so Next packs the server chunk correctly on Node runtime
-    const BoxSDKMod = await import('box-node-sdk');
-    const BoxSDKAny = (BoxSDKMod as unknown as { default?: unknown }).default ?? BoxSDKMod;
+    // Using static import (BoxSDK); Next packs it via serverComponentsExternalPackages config
 
 
     // Validate required JWT envs for server auth
@@ -77,42 +74,123 @@ export async function POST(req: Request) {
       );
     }
 
-    // Instantiate SDK using preconfigured instance (recommended for JWT)
-    const getPreconfiguredInstance =
-      (BoxSDKAny as unknown as { getPreconfiguredInstance?: (cfg: BoxPreconfig) => SDKInstance })
-        .getPreconfiguredInstance;
+    // Pure HTTP flow using JWT assertion (JWT Bearer) + Token Exchange (no SDK).
+    // This does NOT require CCG to be enabled; it uses your JWT keypair.
+    const form = (data: Record<string, string>) =>
+      Object.entries(data)
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .join('&');
 
-    if (typeof getPreconfiguredInstance !== 'function') {
+    // Helper: base64url
+    const base64url = (input: Buffer | string) =>
+      Buffer.from(input)
+        .toString('base64')
+        .replace(/=/g, '')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_');
+
+    // Helper: sign RS256 with Node crypto
+    const { createSign, randomUUID } = await import('node:crypto');
+
+    // 1) Build and sign a JWT assertion for Box (JWT Bearer)
+    const header = {
+      alg: 'RS256',
+      typ: 'JWT',
+      kid: PUBLIC_KEY_ID,
+    };
+
+    const now = Math.floor(Date.now() / 1000);
+    const jti = randomUUID();
+
+    const payload = {
+      iss: BOX_CLIENT_ID,
+      sub: BOX_ENTERPRISE_ID,
+      box_sub_type: 'enterprise',
+      aud: 'https://api.box.com/oauth2/token',
+      jti,
+      exp: now + 45, // 45 seconds
+    };
+
+    const encodedHeader = base64url(JSON.stringify(header));
+    const encodedPayload = base64url(JSON.stringify(payload));
+    const signingInput = `${encodedHeader}.${encodedPayload}`;
+
+    const signer = createSign('RSA-SHA256');
+    signer.update(signingInput);
+    signer.end();
+
+    // Normalize private key newlines
+    const privateKeyPem =
+      (BOX_JWT_PRIVATE_KEY || '').includes('\\n')
+        ? (BOX_JWT_PRIVATE_KEY as string).replace(/\\n/g, '\n')
+        : (BOX_JWT_PRIVATE_KEY as string);
+
+    const signature = signer.sign(
+      { key: privateKeyPem, passphrase: BOX_JWT_PASSPHRASE as string },
+      'base64'
+    );
+    const jwtAssertion = `${signingInput}.${signature
+      .replace(/=/g, '')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')}`;
+
+    // 2) Exchange JWT for an enterprise access token
+    const jwtRes = await fetch('https://api.box.com/oauth2/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: form({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion: jwtAssertion,
+        client_id: BOX_CLIENT_ID as string,
+        client_secret: BOX_CLIENT_SECRET as string,
+      }),
+    });
+
+    const jwtJson = await jwtRes.json().catch(() => ({}));
+    if (!jwtRes.ok || !jwtJson?.access_token) {
       return NextResponse.json(
-        { error: 'Box SDK misconfigured on server (getPreconfiguredInstance not available)' },
+        {
+          error: 'JWT bearer token request failed',
+          reason: jwtJson,
+          hint:
+            'Verify KID, private key, and passphrase; ensure Admin has approved the app; ensure enterprise ID is correct.',
+        },
         { status: 500 }
       );
     }
 
-    const sdk = getPreconfiguredInstance({
-      boxAppSettings: {
-        clientID: BOX_CLIENT_ID as string,
-        clientSecret: BOX_CLIENT_SECRET as string,
-        appAuth: {
-          publicKeyID: PUBLIC_KEY_ID,
-          privateKey: PRIVATE_KEY,
-          passphrase: BOX_JWT_PASSPHRASE as string,
-        },
-      },
-      enterpriseID: BOX_ENTERPRISE_ID as string,
+    // 3) Downscope via RFC8693 Token Exchange to item_preview/item_download for the folder
+    const exRes = await fetch('https://api.box.com/oauth2/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: form({
+        grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+        subject_token: jwtJson.access_token as string,
+        subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+        scope: 'base_explorer item_preview item_download',
+        resource: `https://api.box.com/2.0/folders/${folderId}`,
+        client_id: BOX_CLIENT_ID as string,
+        client_secret: BOX_CLIENT_SECRET as string,
+      }),
     });
 
-    const client = sdk.getAppAuthClient('enterprise', BOX_ENTERPRISE_ID as string);
-
-    // Downscope to preview/download for the requested folder
-    const tokenResponse = await client.exchangeToken(
-      ['item_preview', 'item_download'],
-      `https://api.box.com/2.0/folders/${folderId}`
-    );
+    const exJson = await exRes.json().catch(() => ({}));
+    if (!exRes.ok || !exJson?.access_token) {
+      return NextResponse.json(
+        {
+          error: 'Token exchange (downscope) failed',
+          reason: exJson,
+          hint:
+            'Ensure resource folder is valid and app permissions include item_preview/item_download.',
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
-      token: tokenResponse.accessToken,
-      expiresIn: tokenResponse.expires_in ?? 3600,
+      token: exJson.access_token as string,
+      expiresIn: exJson.expires_in ?? 3600,
+      used: 'jwt+token-exchange',
     });
   } catch (err) {
     // Try to surface a safe error message to help diagnose env/config issues on live
