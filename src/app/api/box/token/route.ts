@@ -26,16 +26,22 @@ type BoxSDKCtor = new (cfg: {
 
 /**
  * POST /api/box/token
- * Body: { folderId: string }
- * Returns a short-lived downscoped access token with read/preview scopes for the given folder.
+ * Body: { folderId?: string; fileId?: string }
+ * Returns a short-lived downscoped access token with read/preview scopes for the given folder or file.
  */
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as { folderId?: string };
+    const body = (await req.json()) as { folderId?: string; fileId?: string };
     const folderId = body?.folderId;
-    if (!folderId) {
-      return NextResponse.json({ error: 'folderId required' }, { status: 400 });
+    const fileId = body?.fileId;
+
+    if (!folderId && !fileId) {
+      return NextResponse.json({ error: 'folderId or fileId required' }, { status: 400 });
     }
+
+    const resourceUrl = folderId
+      ? `https://api.box.com/2.0/folders/${folderId}`
+      : `https://api.box.com/2.0/files/${fileId}`;
 
     const {
       BOX_CLIENT_ID,
@@ -62,13 +68,12 @@ export async function POST(req: Request) {
       !BOX_CLIENT_ID ||
       !BOX_CLIENT_SECRET ||
       !BOX_ENTERPRISE_ID ||
-      !BOX_JWT_PRIVATE_KEY ||
-      !BOX_JWT_PASSPHRASE
+      !BOX_JWT_PRIVATE_KEY
     ) {
       return NextResponse.json(
         {
           error:
-            'Box server auth misconfigured: env vars missing (BOX_CLIENT_ID/SECRET/ENTERPRISE_ID/JWT_PRIVATE_KEY/JWT_PASSPHRASE).',
+            'Box server auth misconfigured: env vars missing (BOX_CLIENT_ID/SECRET/ENTERPRISE_ID/JWT_PRIVATE_KEY).',
         },
         { status: 500 }
       );
@@ -125,10 +130,12 @@ export async function POST(req: Request) {
         ? (BOX_JWT_PRIVATE_KEY as string).replace(/\\n/g, '\n')
         : (BOX_JWT_PRIVATE_KEY as string);
 
-    const signature = signer.sign(
-      { key: privateKeyPem, passphrase: BOX_JWT_PASSPHRASE as string },
-      'base64'
-    );
+    // Sign with passphrase only if provided; some runtimes (e.g. Vercel) reject certain encrypted key ciphers
+    const signKey =
+      BOX_JWT_PASSPHRASE && (BOX_JWT_PASSPHRASE as string).length > 0
+        ? { key: privateKeyPem, passphrase: BOX_JWT_PASSPHRASE as string }
+        : privateKeyPem;
+    const signature = signer.sign(signKey, 'base64');
     const jwtAssertion = `${signingInput}.${signature
       .replace(/=/g, '')
       .replace(/\+/g, '-')
@@ -168,7 +175,7 @@ export async function POST(req: Request) {
         subject_token: jwtJson.access_token as string,
         subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
         scope: 'base_explorer item_preview item_download',
-        resource: `https://api.box.com/2.0/folders/${folderId}`,
+        resource: resourceUrl,
         client_id: BOX_CLIENT_ID as string,
         client_secret: BOX_CLIENT_SECRET as string,
       }),
@@ -181,7 +188,7 @@ export async function POST(req: Request) {
           error: 'Token exchange (downscope) failed',
           reason: exJson,
           hint:
-            'Ensure resource folder is valid and app permissions include item_preview/item_download.',
+            'Ensure the resource exists and the Service Account has access; use /folders/{id} for folders or /files/{id} for files; app must have Read content scope.',
         },
         { status: 500 }
       );
@@ -220,7 +227,7 @@ export async function POST(req: Request) {
         error: 'Failed to create Box token',
         reason,
         hint:
-          'Verify BOX_CLIENT_ID/BOX_CLIENT_SECRET/BOX_ENTERPRISE_ID/BOX_JWT_PRIVATE_KEY/BOX_JWT_PASSPHRASE/BOX_JWT_PUBLIC_KEY_ID on Vercel. Ensure PUBLIC_KEY_ID (KID) matches the key in Box app.',
+          'Verify BOX_CLIENT_ID/BOX_CLIENT_SECRET/BOX_ENTERPRISE_ID/BOX_JWT_PRIVATE_KEY/BOX_JWT_PUBLIC_KEY_ID on Vercel (if using an encrypted key, also set BOX_JWT_PASSPHRASE). Ensure PUBLIC_KEY_ID (KID) matches the key in Box app.',
       },
       { status: 500 }
     );
