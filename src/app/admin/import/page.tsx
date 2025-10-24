@@ -379,7 +379,7 @@ export default function ImportPage() {
         <p>Notes:</p>
         <ul className="list-disc ml-5">
           <li>Upsert semantics: existing slugs are updated; new slugs are created.</li>
-          <li>If an article includes assets with <code>src="assets://filename"</code>, they will be uploaded via /api/upload and rewritten to permanent URLs before saving.</li>
+          <li>If an article includes assets with the src value <code>assets://filename</code>, they will be uploaded via /api/upload and rewritten to permanent URLs before saving.</li>
           <li>Embeddings are generated asynchronously after upsert when OPENAI_API_KEY is configured.</li>
           <li>Ensure parent_slug points to an existing or in-payload slug when building hierarchies.</li>
         </ul>

@@ -7,9 +7,11 @@ type BoxDownscopeResult = { accessToken: string; expires_in?: number };
 
 // Minimal types to avoid any
 
+/* AppAuthClient removed to satisfy @typescript-eslint/no-unused-vars
 type AppAuthClient = {
   exchangeToken: (scopes: string[], resource: string) => Promise<BoxDownscopeResult>;
 };
+*/
 
 /* type SDKInstance = {
   getAppAuthClient: (type: 'enterprise' | 'user', id: string) => AppAuthClient;
