@@ -33,6 +33,22 @@ export default async function HomePage() {
       parent_slug: string | null;
     }[] | null) || [];
 
+  const { data: peopleData } = await supa
+    .from('profiles')
+    .select('slug, first_name, last_name, job_title, photo_url')
+    .eq('status', 'approved')
+    .order('last_name')
+    .limit(6);
+
+  const people =
+    (peopleData as {
+      slug: string;
+      first_name: string;
+      last_name: string;
+      job_title: string;
+      photo_url: string | null;
+    }[] | null) || [];
+
   // Group pages by top-level parent
   const pageGroups = new Map<
     string,
@@ -57,12 +73,20 @@ export default async function HomePage() {
                 <p className="text-sm text-gray-300">Your company policies, guides, and documentation</p>
               </div>
             </Link>
-            <Link
-              href="/admin"
-              className="text-sm text-gray-300 hover:text-white transition-colors"
-            >
-              Admin
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link
+                href="/people"
+                className="text-sm text-gray-300 hover:text-white transition-colors"
+              >
+                People
+              </Link>
+              <Link
+                href="/admin"
+                className="text-sm text-gray-300 hover:text-white transition-colors"
+              >
+                Admin
+              </Link>
+            </div>
           </div>
         </div>
       </header>
@@ -126,6 +150,50 @@ export default async function HomePage() {
             );
           })}
         </div>
+
+        {/* People */}
+        {people.length > 0 && (
+          <div className="mt-12">
+            <div className="flex items-baseline justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">People</h2>
+              <Link href="/people" className="text-sm text-blue-600 hover:text-blue-800">
+                View all →
+              </Link>
+            </div>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {people.map((p) => {
+                const fullName = `${p.first_name} ${p.last_name}`.trim();
+                return (
+                  <Link
+                    key={p.slug}
+                    href={`/people/${p.slug}`}
+                    className="group rounded-lg border bg-white hover:shadow-md transition overflow-hidden"
+                  >
+                    <div className="p-5 flex gap-4 items-center">
+                      <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                        {p.photo_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={p.photo_url} alt={fullName} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400 text-xl font-semibold">
+                            {p.first_name.charAt(0)}
+                            {p.last_name.charAt(0)}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-base font-semibold text-gray-900 group-hover:text-blue-700">
+                          {fullName}
+                        </div>
+                        <div className="text-sm text-gray-600">{p.job_title}</div>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {top.length === 0 && (
           <div className="text-center py-12">

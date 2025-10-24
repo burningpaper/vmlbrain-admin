@@ -22,6 +22,19 @@ export default function AdminPage() {
   const [boxFolderId, setBoxFolderId] = useState('');
   const [boxFileIdsText, setBoxFileIdsText] = useState('');
 
+  // Content type
+  const [contentType, setContentType] = useState<'knowledge' | 'profile'>('knowledge');
+
+  // People (profiles) state
+  const [profiles, setProfiles] = useState<{ slug: string; first_name: string; last_name: string; job_title: string }[]>([]);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
+  const [profileDescHtml, setProfileDescHtml] = useState('<p></p>');
+  const [clientsText, setClientsText] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [email, setEmail] = useState('');
+
   // Fetch all policies for the sidebar
   useEffect(() => {
     (async () => {
@@ -31,6 +44,17 @@ export default function AdminPage() {
         .order('title', { ascending: true });
 
       if (!error && data) setList(data);
+    })();
+  }, []);
+
+  // Fetch profiles list for sidebar
+  useEffect(() => {
+    (async () => {
+      const { data } = await supa
+        .from('profiles')
+        .select('slug,first_name,last_name,job_title')
+        .order('last_name', { ascending: true });
+      if (data) setProfiles(data as any);
     })();
   }, []);
 
@@ -69,6 +93,7 @@ export default function AdminPage() {
       .single();
 
     if (!error && data) {
+      setContentType('knowledge');
       setSlug(data.slug);
       setTitle(data.title);
       setSummary((data as { summary?: string | null }).summary || '');
@@ -79,6 +104,131 @@ export default function AdminPage() {
       setBoxFolderId(boxFolder);
       setBoxFileIdsText(boxFiles.join(','));
     }
+  }
+
+  // Load a specific profile for editing
+  async function loadProfile(s: string) {
+    const { data, error } = await supa
+      .from('profiles')
+      .select('*')
+      .eq('slug', s)
+      .single();
+
+    if (!error && data) {
+      setContentType('profile');
+      setSlug((data as any).slug || '');
+      setFirstName((data as any).first_name || '');
+      setLastName((data as any).last_name || '');
+      setJobTitle((data as any).job_title || '');
+      setEmail((data as any).email || '');
+      setClientsText(Array.isArray((data as any).clients) ? ((data as any).clients as string[]).join(',') : '');
+      setPhotoUrl((data as any).photo_url || '');
+      setProfileDescHtml((data as any).description_html || '<p></p>');
+    }
+  }
+
+  // Upload profile photo via /api/upload
+  async function uploadPhoto() {
+    if (!token) {
+      alert('Missing edit token');
+      return;
+    }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', headers: { 'x-edit-token': token }, body: fd });
+      if (!res.ok) {
+        alert('Upload failed: ' + (await res.text()));
+        return;
+      }
+      const { url } = (await res.json()) as { url: string };
+      setPhotoUrl(url);
+    };
+    input.click();
+  }
+
+  // Save current profile
+  async function saveProfile() {
+    if (!token) {
+      alert('Missing edit token');
+      return;
+    }
+    if (!slug) {
+      alert('Please enter a slug');
+      return;
+    }
+    const res = await fetch('/api/profiles/upsert', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-edit-token': token },
+      body: JSON.stringify({
+        slug,
+        first_name: firstName,
+        last_name: lastName,
+        job_title: jobTitle,
+        description_html: profileDescHtml,
+        clients: clientsText ? clientsText.split(',').map((s) => s.trim()).filter(Boolean) : [],
+        photo_url: photoUrl || null,
+        email,
+        status: 'approved',
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      alert('Save profile failed: ' + text);
+    } else {
+      alert('Profile saved');
+      const { data } = await supa
+        .from('profiles')
+        .select('slug,first_name,last_name,job_title')
+        .order('last_name', { ascending: true });
+      if (data) setProfiles(data as any);
+    }
+  }
+
+  // Delete current profile
+  async function delProfile() {
+    if (!slug) {
+      alert('No profile loaded.');
+      return;
+    }
+    if (!token) {
+      alert('Missing edit token');
+      return;
+    }
+    const confirmed = window.confirm(`Delete profile "${firstName} ${lastName}" permanently?`);
+    if (!confirmed) return;
+
+    const res = await fetch('/api/profiles/delete', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-edit-token': token },
+      body: JSON.stringify({ slug }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      alert('Delete profile failed: ' + text);
+      return;
+    }
+
+    alert('Profile deleted');
+    setSlug('');
+    setFirstName('');
+    setLastName('');
+    setJobTitle('');
+    setEmail('');
+    setClientsText('');
+    setPhotoUrl('');
+    setProfileDescHtml('<p></p>');
+
+    const { data } = await supa
+      .from('profiles')
+      .select('slug,first_name,last_name,job_title')
+      .order('last_name', { ascending: true });
+    if (data) setProfiles(data as any);
   }
 
   // Delete current article (token-gated)
@@ -220,6 +370,7 @@ export default function AdminPage() {
           <button
             className="mb-2 w-full px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium"
             onClick={() => {
+              setContentType('knowledge');
               setSlug('');
               setTitle('');
               setSummary('');
@@ -237,10 +388,54 @@ export default function AdminPage() {
               <TreeNode key={node.slug} node={node} />
             ))}
           </ul>
+
+          <div className="text-xs text-gray-500 mb-2 mt-4 font-medium">PEOPLE</div>
+          <button
+            className="mb-2 w-full px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 font-medium"
+            onClick={() => {
+              setContentType('profile');
+              setSlug('');
+              setFirstName('');
+              setLastName('');
+              setJobTitle('');
+              setEmail('');
+              setClientsText('');
+              setPhotoUrl('');
+              setProfileDescHtml('<p></p>');
+            }}
+          >
+            + New Profile
+          </button>
+          <ul className="space-y-1">
+            {profiles.map((p) => (
+              <li key={p.slug} className="list-none">
+                <button
+                  className="underline hover:text-blue-600 block w-full text-left"
+                  onClick={() => loadProfile(p.slug)}
+                >
+                  {p.last_name}, {p.first_name} — {p.job_title}
+                </button>
+              </li>
+            ))}
+          </ul>
         </aside>
 
         {/* Editor panel */}
         <section className="flex-1 space-y-3">
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">
+              Content Type
+            </label>
+            <select
+              className="w-full border p-2 rounded bg-white"
+              value={contentType}
+              onChange={(e) => setContentType(e.target.value as 'knowledge' | 'profile')}
+            >
+              <option value="knowledge">Knowledge Article</option>
+              <option value="profile">Profile Page</option>
+            </select>
+          </div>
+          <div className={contentType === 'knowledge' ? '' : 'hidden'}>
           <input
             placeholder="slug (kebab-case)"
             className="w-full border p-2 rounded"
@@ -335,6 +530,96 @@ export default function AdminPage() {
             >
               Delete
             </button>
+          </div>
+
+          </div>
+
+          {/* Profile form */}
+          <div className={contentType === 'profile' ? '' : 'hidden'}>
+            <input
+              placeholder="slug (kebab-case)"
+              className="w-full border p-2 rounded"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+            />
+            <div className="grid gap-3 md:grid-cols-2">
+              <input
+                placeholder="First Name"
+                className="w-full border p-2 rounded"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+              />
+              <input
+                placeholder="Last Name"
+                className="w-full border p-2 rounded"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+              />
+              <input
+                placeholder="Job Title"
+                className="w-full border p-2 rounded"
+                value={jobTitle}
+                onChange={(e) => setJobTitle(e.target.value)}
+              />
+              <input
+                placeholder="Email Address"
+                className="w-full border p-2 rounded"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">
+                Main Clients serviced (comma-separated)
+              </label>
+              <input
+                className="w-full border p-2 rounded"
+                placeholder="Client A, Client B"
+                value={clientsText}
+                onChange={(e) => setClientsText(e.target.value)}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                className="flex-1 border p-2 rounded"
+                placeholder="Photo URL"
+                value={photoUrl}
+                onChange={(e) => setPhotoUrl(e.target.value)}
+              />
+              <button
+                type="button"
+                className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+                onClick={uploadPhoto}
+              >
+                Upload…
+              </button>
+            </div>
+
+            <div className="mt-2">
+              <label className="block text-sm font-medium mb-1 text-gray-700">
+                Profile description
+              </label>
+              <PolicyEditor value={profileDescHtml} onChange={setProfileDescHtml} token={token} />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium"
+                onClick={saveProfile}
+              >
+                Save Profile
+              </button>
+              <button
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={delProfile}
+                disabled={!slug}
+                title={!slug ? 'Load a profile first' : 'Delete this profile'}
+              >
+                Delete Profile
+              </button>
+            </div>
           </div>
         </section>
       </div>

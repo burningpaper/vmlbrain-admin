@@ -14,7 +14,7 @@ export default function ChatWidget() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: "Hi! I'm here to help you find information in our company policies. What would you like to know?",
+      content: "Hi! I'm here to help you find information in our company policies and people profiles. What would you like to know?",
     },
   ]);
   const [input, setInput] = useState('');
@@ -188,7 +188,7 @@ export default function ChatWidget() {
                     sendMessage();
                   }
                 }}
-                placeholder="Ask about our policies..."
+                placeholder="Ask about our policies or people..."
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 disabled={isLoading}
               />

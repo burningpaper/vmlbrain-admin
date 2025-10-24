@@ -7,6 +7,9 @@ type PolicyMatch = { policy_slug: string; content: string; chunk_index?: number;
 type PolicyMeta = { slug: string; title: string };
 type KPolicy = { slug: string; title: string; summary: string | null; body_md: string | null };
 
+type ProfileMatch = { profile_slug: string; content: string; chunk_index?: number; id?: number; similarity?: number };
+type ProfileMeta = { slug: string; first_name: string; last_name: string; job_title: string };
+
 export async function POST(req: Request) {
   try {
     const { message } = await req.json();
@@ -31,6 +34,14 @@ export async function POST(req: Request) {
 
     const questionEmbedding = embeddingResponse.data[0].embedding;
 
+    // Search for similar chunks in both policies and profiles
+    const { data: pMatches, error: pSearchError } = await supaAdmin
+      .rpc('match_profile_embeddings', {
+        query_embedding: questionEmbedding,
+        match_threshold: 0.35,
+        match_count: 10,
+      });
+
     // Search for similar policy chunks using the match_policy_embeddings function
     const { data: matches, error: searchError } = await supaAdmin
       .rpc('match_policy_embeddings', {
@@ -44,8 +55,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Search failed' }, { status: 500 });
     }
 
-    if (!matches || matches.length === 0) {
-      // Fallback: simple keyword search over policies if vector search returns nothing
+    if ((!matches || matches.length === 0) && (!pMatches || pMatches.length === 0)) {
+      // Fallback: keyword search over both policies and profiles if vector search returns nothing
       const tokens = (message.toLowerCase().match(/[a-z0-9]+/g) || []) as string[];
       const keywords = Array.from(new Set(tokens.filter(w => w.length >= 3))).slice(0, 5);
       const clean = (s: string) => (s || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -73,34 +84,66 @@ export async function POST(req: Request) {
           );
         }
         const terms = Array.from(new Set([...baseTerms, ...synonyms]));
-        const orFilter = terms
-          .map(t => `title.ilike.%${t}%,summary.ilike.%${t}%,body_md.ilike.%${t}%`)
-          .join(',');
 
-        const { data: kwPolicies, error: kwError } = await supaAdmin
-          .from('policies')
-          .select('slug, title, summary, body_md')
-          .or(orFilter)
-          .limit(5);
+        // Policies keyword search
+        let policyContext = '';
+        let primaryPolicy: { slug: string; title: string } | null = null;
+        if (terms.length > 0) {
+          const pOr = terms.map(t => `title.ilike.%${t}%,summary.ilike.%${t}%,body_md.ilike.%${t}%`).join(',');
+          const { data: kwPolicies } = await supaAdmin
+            .from('policies')
+            .select('slug, title, summary, body_md')
+            .or(pOr)
+            .limit(3);
+          if (kwPolicies && kwPolicies.length > 0) {
+            const kps = (kwPolicies as KPolicy[] | null) || [];
+            policyContext = kps
+              .map((p: KPolicy) => `[From "${p.title}"]\n${clean(`${p.title}\n\n${p.summary || ''}\n\n${p.body_md || ''}`)}`)
+              .join('\n\n');
+            primaryPolicy = { slug: kps[0].slug, title: kps[0].title };
+          }
+        }
 
-        if (!kwError && kwPolicies && kwPolicies.length > 0) {
-          const kps = (kwPolicies as KPolicy[] | null) || [];
-          const fallbackContext = kps
-            .map((p: KPolicy) => `[From "${p.title}"]\n${clean(`${p.title}\n\n${p.summary || ''}\n\n${p.body_md || ''}`)}`)
-            .join('\n\n');
+        // Profiles keyword search
+        let profileContext = '';
+        let primaryProfile: { slug: string; title: string } | null = null;
+        if (terms.length > 0) {
+          const profOr = terms
+            .map(t => `first_name.ilike.%${t}%,last_name.ilike.%${t}%,job_title.ilike.%${t}%,description_html.ilike.%${t}%`)
+            .join(',');
+          const { data: kwProfiles } = await supaAdmin
+            .from('profiles')
+            .select('slug, first_name, last_name, job_title, description_html')
+            .or(profOr)
+            .limit(3);
+          if (kwProfiles && kwProfiles.length > 0) {
+            const profs = kwProfiles as { slug: string; first_name: string; last_name: string; job_title: string; description_html: string | null }[];
+            profileContext = profs
+              .map((p) => {
+                const name = `${p.first_name} ${p.last_name}`.trim();
+                return `[From "${name} — ${p.job_title}"]\n${clean(p.description_html || '')}`;
+              })
+              .join('\n\n');
+            const t0 = profs[0];
+            primaryProfile = { slug: t0.slug, title: `${t0.first_name} ${t0.last_name}`.trim() };
+          }
+        }
 
+        const combinedContext = [policyContext, profileContext].filter(Boolean).join('\n\n');
+
+        if (combinedContext) {
           const completion = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [
               {
                 role: 'system',
-                content: `You are a helpful assistant that answers questions about company policies.
+                content: `You are a helpful assistant that answers questions about company policies and people profiles.
                 Use the provided context to answer questions accurately and concisely.
-                Always cite which policy your information comes from.`,
+                Always cite which page your information comes from.`,
               },
               {
                 role: 'user',
-                content: `Context from our policies:\n\n${fallbackContext}\n\nQuestion: ${message}`,
+                content: `Context:\n\n${combinedContext}\n\nQuestion: ${message}`,
               },
             ],
             temperature: 0.7,
@@ -108,9 +151,10 @@ export async function POST(req: Request) {
           });
 
           const answer = completion.choices[0].message.content || 'No answer generated';
-          const primary = kps[0];
-          const sources = primary
-            ? [{ slug: primary.slug, title: primary.title, url: `/p/${primary.slug}` }]
+          const sources = primaryPolicy
+            ? [{ slug: primaryPolicy.slug, title: primaryPolicy.title, url: `/p/${primaryPolicy.slug}` }]
+            : primaryProfile
+            ? [{ slug: primaryProfile.slug, title: primaryProfile.title, url: `/people/${primaryProfile.slug}` }]
             : [];
 
           return NextResponse.json({ answer, sources });
@@ -118,7 +162,7 @@ export async function POST(req: Request) {
       }
 
       return NextResponse.json({
-        answer: "I couldn't find any relevant information in our policies to answer that question. Could you please rephrase or ask something else?",
+        answer: "I couldn't find anything relevant in policies or profiles to answer that question. Could you please rephrase or ask something else?",
         sources: [],
       });
     }
@@ -178,7 +222,10 @@ export async function POST(req: Request) {
       console.error('KW augment error:', e);
     }
 
-    // Get unique policy titles for sources
+    // Collect profile vector matches
+    const profileVectorMatches: ProfileMatch[] = ((pMatches as ProfileMatch[]) || []).map((m) => m);
+
+    // Get unique policy titles
     const uniquePolicySlugs = [...new Set(augmentedMatches.map((m: PolicyMatch) => m.policy_slug))];
     const { data: policies } = await supaAdmin
       .from('policies')
@@ -186,17 +233,38 @@ export async function POST(req: Request) {
       .in('slug', uniquePolicySlugs);
 
     const policyList = (policies as PolicyMeta[] | null) || [];
-    const policyTitles = new Map(
-      policyList.map((p: PolicyMeta) => [p.slug, p.title])
+    const policyTitles = new Map(policyList.map((p: PolicyMeta) => [p.slug, p.title]));
+
+    // Get unique profile meta for titles
+    const uniqueProfileSlugs = [...new Set(profileVectorMatches.map((m: ProfileMatch) => m.profile_slug))];
+    const { data: profMeta } = uniqueProfileSlugs.length
+      ? await supaAdmin
+          .from('profiles')
+          .select('slug, first_name, last_name, job_title')
+          .in('slug', uniqueProfileSlugs)
+      : { data: [] as any };
+
+    const profileList = (profMeta as ProfileMeta[] | null) || [];
+    const profileTitles = new Map(
+      profileList.map((p: ProfileMeta) => [p.slug, `${p.first_name} ${p.last_name}`.trim() + (p.job_title ? ` — ${p.job_title}` : '')])
     );
 
-    // Build context from matches (vector + keyword-augmented)
-    const context = augmentedMatches
+    // Build combined context (policies + profiles)
+    const policyContext = augmentedMatches
       .map((match: PolicyMatch) => {
         const policyTitle = policyTitles.get(match.policy_slug) || match.policy_slug;
         return `[From "${policyTitle}"]\n${match.content}`;
       })
       .join('\n\n');
+
+    const profileContext = profileVectorMatches
+      .map((match: ProfileMatch) => {
+        const title = profileTitles.get(match.profile_slug) || match.profile_slug;
+        return `[From "${title}"]\n${match.content}`;
+      })
+      .join('\n\n');
+
+    const combinedContext = [policyContext, profileContext].filter(Boolean).join('\n\n');
 
     // Generate answer using OpenAI
     const completion = await openai.chat.completions.create({
@@ -204,15 +272,15 @@ export async function POST(req: Request) {
       messages: [
         {
           role: 'system',
-          content: `You are a helpful assistant that answers questions about company policies. 
+          content: `You are a helpful assistant that answers questions about company policies and people profiles.
           Use the provided context to answer questions accurately and concisely.
           If the context doesn't contain enough information to answer the question, say so.
-          Always cite which policy your information comes from.
+          Always cite which page your information comes from.
           Keep answers professional and friendly.`,
         },
         {
           role: 'user',
-          content: `Context from our policies:\n\n${context}\n\nQuestion: ${message}`,
+          content: `Context:\n\n${combinedContext}\n\nQuestion: ${message}`,
         },
       ],
       temperature: 0.7,
@@ -221,22 +289,21 @@ export async function POST(req: Request) {
 
     const answer = completion.choices[0].message.content || 'No answer generated';
 
-    // Format a single primary source link (top vector match or first augmented)
-    const primarySlug =
-      (matches as PolicyMatch[])[0]?.policy_slug ||
-      augmentedMatches[0]?.policy_slug;
-    const sources = primarySlug
-      ? [{
-          slug: primarySlug,
-          title: policyTitles.get(primarySlug) || primarySlug,
-          url: `/p/${primarySlug}`,
-        }]
-      : [];
+    // Choose a primary source from the highest-similarity match among policies and profiles
+    const topPolicy = (matches as PolicyMatch[] | null)?.[0];
+    const topProfile = (pMatches as ProfileMatch[] | null)?.[0];
 
-    return NextResponse.json({
-      answer,
-      sources,
-    });
+    let sources: Array<{ slug: string; title: string; url: string }> = [];
+    if (topPolicy && (!topProfile || (topPolicy.similarity || 0) >= (topProfile.similarity || 0))) {
+      const slug = topPolicy.policy_slug;
+      sources = [{ slug, title: policyTitles.get(slug) || slug, url: `/p/${slug}` }];
+    } else if (topProfile) {
+      const slug = topProfile.profile_slug;
+      const title = profileTitles.get(slug) || slug;
+      sources = [{ slug, title, url: `/people/${slug}` }];
+    }
+
+    return NextResponse.json({ answer, sources });
 
   } catch (error: unknown) {
     console.error('Chat error:', error);
