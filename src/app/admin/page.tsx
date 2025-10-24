@@ -10,6 +10,21 @@ interface Policy {
   parent_slug: string | null;
 }
 
+// People profiles types
+interface ProfileListItem {
+  slug: string;
+  first_name: string;
+  last_name: string;
+  job_title: string;
+}
+
+interface ProfileRow extends ProfileListItem {
+  email: string;
+  clients: string[] | null;
+  photo_url: string | null;
+  description_html: string | null;
+}
+
 export default function AdminPage() {
   const [list, setList] = useState<Policy[]>([]);
   const [slug, setSlug] = useState('');
@@ -54,7 +69,7 @@ export default function AdminPage() {
         .from('profiles')
         .select('slug,first_name,last_name,job_title')
         .order('last_name', { ascending: true });
-      if (data) setProfiles(data as any);
+      if (data) setProfiles(data as ProfileListItem[]);
     })();
   }, []);
 
@@ -116,14 +131,15 @@ export default function AdminPage() {
 
     if (!error && data) {
       setContentType('profile');
-      setSlug((data as any).slug || '');
-      setFirstName((data as any).first_name || '');
-      setLastName((data as any).last_name || '');
-      setJobTitle((data as any).job_title || '');
-      setEmail((data as any).email || '');
-      setClientsText(Array.isArray((data as any).clients) ? ((data as any).clients as string[]).join(',') : '');
-      setPhotoUrl((data as any).photo_url || '');
-      setProfileDescHtml((data as any).description_html || '<p></p>');
+      const row = data as ProfileRow;
+      setSlug(row.slug || '');
+      setFirstName(row.first_name || '');
+      setLastName(row.last_name || '');
+      setJobTitle(row.job_title || '');
+      setEmail(row.email || '');
+      setClientsText(Array.isArray(row.clients) ? (row.clients as string[]).join(',') : '');
+      setPhotoUrl(row.photo_url || '');
+      setProfileDescHtml(row.description_html || '<p></p>');
     }
   }
 
@@ -186,7 +202,7 @@ export default function AdminPage() {
         .from('profiles')
         .select('slug,first_name,last_name,job_title')
         .order('last_name', { ascending: true });
-      if (data) setProfiles(data as any);
+      if (data) setProfiles(data as ProfileListItem[]);
     }
   }
 
@@ -228,7 +244,7 @@ export default function AdminPage() {
       .from('profiles')
       .select('slug,first_name,last_name,job_title')
       .order('last_name', { ascending: true });
-    if (data) setProfiles(data as any);
+    if (data) setProfiles(data as ProfileListItem[]);
   }
 
   // Delete current article (token-gated)

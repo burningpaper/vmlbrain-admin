@@ -70,8 +70,7 @@ export default async function PeopleListingPage() {
                   <div className="p-5 flex gap-4 items-center">
                     <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
                       {p.photo_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.photo_url} alt={fullName} className="w-full h-full object-cover" />
+                        <Image src={p.photo_url} alt={fullName} width={64} height={64} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-400 text-xl font-semibold">
                           {p.first_name.charAt(0)}

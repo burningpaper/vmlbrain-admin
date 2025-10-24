@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     const questionEmbedding = embeddingResponse.data[0].embedding;
 
     // Search for similar chunks in both policies and profiles
-    const { data: pMatches, error: pSearchError } = await supaAdmin
+    const { data: pMatches } = await supaAdmin
       .rpc('match_profile_embeddings', {
         query_embedding: questionEmbedding,
         match_threshold: 0.35,
@@ -237,14 +237,16 @@ export async function POST(req: Request) {
 
     // Get unique profile meta for titles
     const uniqueProfileSlugs = [...new Set(profileVectorMatches.map((m: ProfileMatch) => m.profile_slug))];
-    const { data: profMeta } = uniqueProfileSlugs.length
-      ? await supaAdmin
-          .from('profiles')
-          .select('slug, first_name, last_name, job_title')
-          .in('slug', uniqueProfileSlugs)
-      : { data: [] as any };
+    let profMeta: ProfileMeta[] = [];
+    if (uniqueProfileSlugs.length) {
+      const { data } = await supaAdmin
+        .from('profiles')
+        .select('slug, first_name, last_name, job_title')
+        .in('slug', uniqueProfileSlugs);
+      profMeta = (data as ProfileMeta[] | null) || [];
+    }
 
-    const profileList = (profMeta as ProfileMeta[] | null) || [];
+    const profileList = profMeta;
     const profileTitles = new Map(
       profileList.map((p: ProfileMeta) => [p.slug, `${p.first_name} ${p.last_name}`.trim() + (p.job_title ? ` — ${p.job_title}` : '')])
     );

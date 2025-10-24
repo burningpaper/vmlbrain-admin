@@ -75,9 +75,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ slug: 
             <section className="flex flex-col sm:flex-row sm:items-center gap-6 border-b pb-6">
               <div className="w-28 h-28 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
                 {profile.photo_url ? (
-                  <img
+                  <Image
                     src={profile.photo_url}
                     alt={fullName}
+                    width={112}
+                    height={112}
                     className="w-full h-full object-cover"
                   />
                 ) : (
