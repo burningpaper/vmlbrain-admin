@@ -190,7 +190,12 @@ export default function AdminPage() {
 
   return (
     <main className="p-6 max-w-6xl mx-auto">
-      <h1 className="text-2xl font-semibold mb-4">Knowledge Editor</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-semibold">Knowledge Editor</h1>
+        <a href="/admin/import" className="text-sm text-blue-600 hover:underline">
+          Import (JSON/XML)
+        </a>
+      </div>
 
       {/* Token input */}
       <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
