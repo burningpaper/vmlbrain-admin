@@ -11,9 +11,9 @@ type AppAuthClient = {
   exchangeToken: (scopes: string[], resource: string) => Promise<BoxDownscopeResult>;
 };
 
-type SDKInstance = {
+/* type SDKInstance = {
   getAppAuthClient: (type: 'enterprise' | 'user', id: string) => AppAuthClient;
-};
+}; */
 
 
 
