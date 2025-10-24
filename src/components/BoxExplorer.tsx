@@ -20,6 +20,17 @@ type Props = {
   className?: string;
 };
 
+// Normalize a Box id from either a plain numeric string or a full Box URL.
+// Returns only the trailing numeric id, or null if it can't be parsed.
+function normalizeBoxId(value?: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.toString().trim();
+  // If a full URL was pasted (e.g., https://app.box.com/folder/12345 or /file/6789)
+  const match = trimmed.match(/(\d+)(?:\/?$)/);
+  if (match) return match[1];
+  return /^\d+$/.test(trimmed) ? trimmed : null;
+}
+
 /**
  * Renders a read/preview-only Box Content Explorer rooted to the provided folderId.
  * Uses a short-lived downscoped token from /api/box/token.
@@ -62,11 +73,11 @@ export default function BoxExplorer({ folderId, fileIds, className }: Props) {
       }
     }
 
-    async function fetchToken() {
+    async function fetchToken(body: { folderId?: string; fileId?: string }) {
       const res = await fetch('/api/box/token', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ folderId }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const txt = await res.text();
@@ -77,12 +88,18 @@ export default function BoxExplorer({ folderId, fileIds, className }: Props) {
 
     async function init() {
       try {
-        if (!folderId) {
-          setError('No Box folder linked to this article.');
+        const normFolderId = normalizeBoxId(folderId);
+        const normFileIds = (fileIds || []).map((fid) => normalizeBoxId(fid)).filter(Boolean) as string[];
+        const body: { folderId?: string; fileId?: string } | null =
+          normFolderId ? { folderId: normFolderId } : normFileIds[0] ? { fileId: normFileIds[0] } : null;
+
+        if (!body) {
+          setError('No valid Box folderId or fileId configured.');
           return;
         }
+
         await ensureElementsAssets();
-        const { token } = await fetchToken();
+        const { token } = await fetchToken(body as { folderId?: string; fileId?: string });
         if (cancelled) return;
 
         // Render Box Content Explorer
@@ -90,7 +107,7 @@ export default function BoxExplorer({ folderId, fileIds, className }: Props) {
           throw new Error('Box Elements not available on window.');
         }
         const explorer = new window.Box.ContentExplorer();
-        explorer.show(folderId, token, {
+        explorer.show(normFolderId || '0', token, {
           container: containerRef.current,
           canUpload: false,
           canSetShareAccess: false,
@@ -113,15 +130,15 @@ export default function BoxExplorer({ folderId, fileIds, className }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [folderId]);
+  }, [folderId, fileIds]);
 
   return (
     <div className={className}>
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-semibold text-gray-700">Related Files</h3>
-        {folderId && (
+        {normalizeBoxId(folderId) && (
           <a
-            href={`https://app.box.com/folder/${folderId}`}
+            href={`https://app.box.com/folder/${normalizeBoxId(folderId)}`}
             target="_blank"
             rel="noreferrer"
             className="text-xs text-blue-600 hover:underline"

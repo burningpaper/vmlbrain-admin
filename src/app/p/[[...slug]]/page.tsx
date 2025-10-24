@@ -143,7 +143,7 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
               {/* Related files from Box (read/preview) */}
               {(policy.box_folder_id != null || policy.box_file_ids != null) && (
                 <BoxExplorer
-                  folderId={policy.box_folder_id ?? '0'}
+                  folderId={policy.box_folder_id ?? ''}
                   fileIds={policy.box_file_ids ?? []}
                 />
               )}

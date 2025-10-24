@@ -32,11 +32,24 @@ type BoxSDKCtor = new (cfg: {
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as { folderId?: string; fileId?: string };
-    const folderId = body?.folderId;
-    const fileId = body?.fileId;
+    const norm = (v?: string | null) => {
+      if (!v) return null;
+      const m = v.toString().trim().match(/(\d+)(?:\/?$)/);
+      return m ? m[1] : null;
+    };
+
+    const folderId = norm(body?.folderId);
+    const fileId = norm(body?.fileId);
 
     if (!folderId && !fileId) {
-      return NextResponse.json({ error: 'folderId or fileId required' }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'Invalid or missing folderId/fileId',
+          hint:
+            'Provide a numeric Box ID or a URL ending in /folders/{id} or /files/{id}. Shared-link URLs (/s/...) are not valid here.',
+        },
+        { status: 400 }
+      );
     }
 
     const resourceUrl = folderId
@@ -164,6 +177,30 @@ export async function POST(req: Request) {
         },
         { status: 500 }
       );
+    }
+
+    // Preflight: ensure the Service Account (enterprise token) can access the resource
+    // This distinguishes "invalid_resource" (bad ID or no access) before attempting downscope
+    try {
+      const probeRes = await fetch(resourceUrl, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${jwtJson.access_token}` },
+      });
+      if (!probeRes.ok) {
+        const probeJson = await probeRes.json().catch(() => ({}));
+        return NextResponse.json(
+          {
+            error: 'Resource not accessible by Service Account',
+            reason: probeJson,
+            status: probeRes.status,
+            hint:
+              'Add the app Service Account as a collaborator (Viewer or above) on this folder/file, and ensure the ID is correct.',
+          },
+          { status: 400 }
+        );
+      }
+    } catch {
+      // If the probe fails (network etc.), proceed to token exchange which will still error with context
     }
 
     // 3) Downscope via RFC8693 Token Exchange to item_preview/item_download for the folder

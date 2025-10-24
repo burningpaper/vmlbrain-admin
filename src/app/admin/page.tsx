@@ -81,6 +81,55 @@ export default function AdminPage() {
     }
   }
 
+  // Delete current article (token-gated)
+  async function del() {
+    if (!slug) {
+      alert('No article loaded. Select an article to delete.');
+      return;
+    }
+    if (!token) {
+      alert('Missing edit token');
+      return;
+    }
+    const confirmed = window.confirm(
+      `Delete article "${title || slug}" permanently? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const res = await fetch('/api/policies/delete', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-edit-token': token,
+      },
+      body: JSON.stringify({ slug }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      alert('Delete failed: ' + text);
+      return;
+    }
+
+    alert('Deleted');
+
+    // Clear editor fields
+    setSlug('');
+    setTitle('');
+    setSummary('');
+    setBodyHtml('<p></p>');
+    setParentSlug('');
+    setBoxFolderId('');
+    setBoxFileIdsText('');
+
+    // Refresh list to reflect deletion
+    const { data } = await supa
+      .from('policies')
+      .select('slug,title,parent_slug')
+      .order('title', { ascending: true });
+    if (data) setList(data);
+  }
+
   // Save/update via API (token-gated)
   async function save() {
     if (!token) {
@@ -266,9 +315,22 @@ export default function AdminPage() {
           </div>
 
           <PolicyEditor value={bodyHtml} onChange={setBodyHtml} token={token} />
-          <button className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium" onClick={save}>
-            Save Article
-          </button>
+          <div className="flex gap-2">
+            <button
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium"
+              onClick={save}
+            >
+              Save Article
+            </button>
+            <button
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={del}
+              disabled={!slug}
+              title={!slug ? 'Load an article first' : 'Delete this article'}
+            >
+              Delete
+            </button>
+          </div>
         </section>
       </div>
     </main>
