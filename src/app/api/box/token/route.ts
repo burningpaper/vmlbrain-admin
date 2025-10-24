@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
 import 'server-only';
-import { createRequire } from 'module';
 
 export const runtime = 'nodejs';
 
 type BoxDownscopeResult = { accessToken: string; expires_in?: number };
 
 // Minimal types to avoid any
-type UnknownCtor = new (cfg: Record<string, unknown>) => unknown;
 
 type AppAuthClient = {
   exchangeToken: (scopes: string[], resource: string) => Promise<BoxDownscopeResult>;
@@ -17,11 +15,6 @@ type SDKInstance = {
   getAppAuthClient: (type: 'enterprise' | 'user', id: string) => AppAuthClient;
 };
 
-type BoxSDKCtor = new (cfg: {
-  clientID: string;
-  clientSecret: string;
-  appAuth: { keyID: string; privateKey: string; passphrase: string };
-}) => SDKInstance;
 
 
 /**
@@ -63,14 +56,9 @@ export async function POST(req: Request) {
       BOX_JWT_PRIVATE_KEY,
       BOX_JWT_PASSPHRASE,
       BOX_JWT_PUBLIC_KEY_ID,
-      BOX_DEVELOPER_TOKEN,
     } = process.env;
 
     // Normalize multiline private key when provided via env with escaped \n characters
-    const PRIVATE_KEY =
-      (BOX_JWT_PRIVATE_KEY || '').includes('\\n')
-        ? (BOX_JWT_PRIVATE_KEY as string).replace(/\\n/g, '\n')
-        : (BOX_JWT_PRIVATE_KEY || '');
     const PUBLIC_KEY_ID = BOX_JWT_PUBLIC_KEY_ID || '';
 
     // Using static import (BoxSDK); Next packs it via serverComponentsExternalPackages config

@@ -224,9 +224,10 @@ export default function ImportPage() {
         const titles = payload.articles.map((a) => `• ${a.slug} — ${a.title}${a.parent_slug ? ` (parent: ${a.parent_slug})` : ''}`).join('\n');
         setPreview(`Parsed ${payload.articles.length} articles:\n${titles}`);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
       setParsed(null);
-      setPreview(`Parse error: ${e?.message || String(e)}`);
+      setPreview(`Parse error: ${msg}`);
     }
   }
 
@@ -291,8 +292,9 @@ export default function ImportPage() {
 
       appendLog('DONE: All articles imported successfully.');
       alert('Import completed.');
-    } catch (e: any) {
-      appendLog(`FATAL: ${e?.message || String(e)}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      appendLog(`FATAL: ${msg}`);
       alert('Import failed. See log for details.');
     } finally {
       setBusy(false);
@@ -377,7 +379,7 @@ export default function ImportPage() {
         <p>Notes:</p>
         <ul className="list-disc ml-5">
           <li>Upsert semantics: existing slugs are updated; new slugs are created.</li>
-          <li>If an article includes assets with src="assets://filename", they will be uploaded via /api/upload and rewritten to permanent URLs before saving.</li>
+          <li>If an article includes assets with <code>src="assets://filename"</code>, they will be uploaded via /api/upload and rewritten to permanent URLs before saving.</li>
           <li>Embeddings are generated asynchronously after upsert when OPENAI_API_KEY is configured.</li>
           <li>Ensure parent_slug points to an existing or in-payload slug when building hierarchies.</li>
         </ul>
