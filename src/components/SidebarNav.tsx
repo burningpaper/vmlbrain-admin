@@ -37,7 +37,7 @@ export default function SidebarNav({ items }: SidebarNavProps) {
   useEffect(() => {
     const key = 'sidebar-scroll-pos';
     let scroller: HTMLElement | null = null;
-    let onScroll: ((this: HTMLElement, ev: Event) => any) | null = null;
+    let onScroll: ((ev: Event) => void) | null = null;
 
     const restore = () => {
       scroller = findScrollableAncestor(rootRef.current);
@@ -59,7 +59,7 @@ export default function SidebarNav({ items }: SidebarNavProps) {
     return () => {
       cancelAnimationFrame(id);
       if (scroller && onScroll) {
-        scroller.removeEventListener('scroll', onScroll as any);
+        scroller.removeEventListener('scroll', onScroll);
       }
     };
   }, [pathname]);
