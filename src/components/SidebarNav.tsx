@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useRef } from 'react';
 
 interface NavItem {
   slug: string;
@@ -16,6 +17,52 @@ interface SidebarNavProps {
 
 export default function SidebarNav({ items }: SidebarNavProps) {
   const pathname = usePathname();
+  const rootRef = useRef<HTMLElement | null>(null);
+
+  // Find nearest scrollable ancestor (e.g., the right sidebar container with overflow-y-auto)
+  function findScrollableAncestor(el: HTMLElement | null): HTMLElement | null {
+    let p = el?.parentElement || null;
+    while (p) {
+      const style = window.getComputedStyle(p);
+      const oy = style.overflowY;
+      if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight) {
+        return p;
+      }
+      p = p.parentElement;
+    }
+    return null;
+  }
+
+  // Persist and restore sidebar scroll across route changes
+  useEffect(() => {
+    const key = 'sidebar-scroll-pos';
+    let scroller: HTMLElement | null = null;
+    let onScroll: ((this: HTMLElement, ev: Event) => any) | null = null;
+
+    const restore = () => {
+      scroller = findScrollableAncestor(rootRef.current);
+      if (!scroller) return;
+      const saved = sessionStorage.getItem(key);
+      if (saved) {
+        const pos = parseInt(saved, 10);
+        if (!Number.isNaN(pos)) scroller.scrollTop = pos;
+      }
+      onScroll = () => {
+        if (scroller) sessionStorage.setItem(key, String(scroller.scrollTop));
+      };
+      scroller.addEventListener('scroll', onScroll, { passive: true } as AddEventListenerOptions);
+    };
+
+    // Defer until after paint so layout/height is correct
+    const id = requestAnimationFrame(restore);
+
+    return () => {
+      cancelAnimationFrame(id);
+      if (scroller && onScroll) {
+        scroller.removeEventListener('scroll', onScroll as any);
+      }
+    };
+  }, [pathname]);
 
   // Build tree structure
   const buildTree = (items: NavItem[]): NavItem[] => {
@@ -76,7 +123,7 @@ export default function SidebarNav({ items }: SidebarNavProps) {
   };
 
   return (
-    <nav className="space-y-1">
+    <nav ref={rootRef} className="space-y-1">
       <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mb-3">
         Contents
       </div>
