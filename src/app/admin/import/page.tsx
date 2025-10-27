@@ -245,23 +245,27 @@ export default function ImportPage() {
     const appendLog = (s: string) => setLog((l) => l + s + '\n');
 
     try {
-      // Process in given order (parent/child is fine by slug referencing)
+      // Preprocess: upload assets and rewrite src for each article once
+      appendLog('Preprocessing assets…');
+      const processedHtml = new Map<string, string>();
       for (const art of parsed.articles) {
-        appendLog(`Processing ${art.slug}...`);
-
-        // Handle assets: upload then rewrite src
         let html = art.body_html;
         const map: Record<string, string> = {};
         if (art.assets && art.assets.length) {
           for (const as of art.assets) {
-            appendLog(`  Uploading asset ${as.filename}...`);
+            appendLog(`  Uploading asset ${as.filename} for ${art.slug}…`);
             const url = await uploadAsset(token, as);
             map[as.filename] = url;
           }
           html = rewriteAssetsSrc(html, map);
         }
+        processedHtml.set(art.slug, html);
+      }
 
-        // Upsert article
+      // Pass 1: seed all pages with parent_slug = null to avoid FK violations
+      appendLog('Seeding pages (parent_slug=null)…');
+      for (const art of parsed.articles) {
+        appendLog(`  Seeding ${art.slug}…`);
         const res = await fetch('/api/policies/upsert', {
           method: 'POST',
           headers: {
@@ -272,25 +276,52 @@ export default function ImportPage() {
             slug: art.slug,
             title: art.title,
             summary: art.summary || null,
-            body_md: html, // our DB column is body_md but currently stores HTML string
-            parent_slug: art.parent_slug || null,
+            body_md: processedHtml.get(art.slug) || art.body_html,
+            parent_slug: null,
             audience: art.audience || ['All'],
             status: art.status || 'approved',
             box_folder_id: art.box_folder_id || null,
             box_file_ids: art.box_file_ids || null,
           }),
         });
-
         if (!res.ok) {
           const t = await res.text();
-          appendLog(`  ERROR: upsert failed for ${art.slug}: ${t}`);
-          throw new Error(`Upsert failed for ${art.slug}`);
-        } else {
-          appendLog(`  Upserted ${art.slug} (embeddings will generate in background).`);
+          appendLog(`  ERROR: seed upsert failed for ${art.slug}: ${t}`);
+          throw new Error(`Seed upsert failed for ${art.slug}`);
         }
       }
 
-      appendLog('DONE: All articles imported successfully.');
+      // Pass 2: apply real parent_slug (if provided). If a parent is missing, log the error and continue.
+      appendLog('Applying parent relationships…');
+      for (const art of parsed.articles) {
+        if (!art.parent_slug) continue;
+        appendLog(`  Setting parent of ${art.slug} -> ${art.parent_slug}`);
+        const res = await fetch('/api/policies/upsert', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-edit-token': token,
+          },
+          body: JSON.stringify({
+            slug: art.slug,
+            title: art.title,
+            summary: art.summary || null,
+            body_md: processedHtml.get(art.slug) || art.body_html,
+            parent_slug: art.parent_slug,
+            audience: art.audience || ['All'],
+            status: art.status || 'approved',
+            box_folder_id: art.box_folder_id || null,
+            box_file_ids: art.box_file_ids || null,
+          }),
+        });
+        if (!res.ok) {
+          const t = await res.text();
+          appendLog(`  ERROR: parent update failed for ${art.slug}: ${t}`);
+          // Do not throw here so the rest can still complete; user can re-run after fixing parents.
+        }
+      }
+
+      appendLog('DONE: Import completed (check log for any parent errors).');
       alert('Import completed.');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
