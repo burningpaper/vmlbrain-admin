@@ -1,5 +1,16 @@
 import { NextResponse } from 'next/server';
 
+type IntranetJwtPayload = {
+  sub?: string;
+  email?: string;
+  name?: string;
+  exp?: number;
+  iss?: string;
+  aud?: string;
+  roles?: string[];
+  [k: string]: unknown;
+};
+
 // Verify an RS256 JWT using Web Crypto (works on Node 18+ and Edge runtimes)
 async function importPublicKeyFromPem(pem: string): Promise<CryptoKey> {
   // Expect PEM like -----BEGIN PUBLIC KEY----- base64 -----END PUBLIC KEY-----
@@ -25,7 +36,7 @@ function b64urlToUint8(input: string): Uint8Array {
   return bytes;
 }
 
-async function verifyJwtRS256(token: string, publicKeyPem: string): Promise<{ valid: boolean; payload?: any; error?: string }> {
+async function verifyJwtRS256(token: string, publicKeyPem: string): Promise<{ valid: boolean; payload?: IntranetJwtPayload; error?: string }> {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return { valid: false, error: 'Malformed JWT' };
@@ -35,14 +46,11 @@ async function verifyJwtRS256(token: string, publicKeyPem: string): Promise<{ va
     if (header.alg !== 'RS256') return { valid: false, error: 'Unexpected alg' };
 
     const payloadJson = new TextDecoder().decode(b64urlToUint8(p));
-    const payload = JSON.parse(payloadJson);
+    const payload = JSON.parse(payloadJson) as IntranetJwtPayload;
 
     const dataBytes = new TextEncoder().encode(`${h}.${p}`);
     const sigBytes = b64urlToUint8(s);
 
-    // Ensure ArrayBuffer views for WebCrypto (avoid TS BufferSource typing issues)
-    const dataBuf = dataBytes.buffer.slice(dataBytes.byteOffset, dataBytes.byteOffset + dataBytes.byteLength);
-    const sigBuf = sigBytes.buffer.slice(sigBytes.byteOffset, sigBytes.byteOffset + sigBytes.byteLength);
 
     const key = await importPublicKeyFromPem(publicKeyPem);
     // Convert to ArrayBuffer to satisfy BufferSource typing
