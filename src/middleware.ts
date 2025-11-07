@@ -85,6 +85,29 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Enforce SSO session if configured: require kb_sso cookie in production.
+  // Redirects to your intranet SSO start URL with returnTo pointing back to our callback,
+  // which will set the kb_sso cookie and redirect to the originally requested path.
+  const ssoLoginUrl = process.env.SSO_LOGIN_URL || '';
+  const isProdEnv = process.env.NODE_ENV === 'production';
+  if (ssoLoginUrl && isProdEnv) {
+    const path = req.nextUrl.pathname;
+    const isExempt =
+      path.startsWith('/api/auth/callback') ||
+      path.startsWith('/api/auth/logout') ||
+      path.startsWith('/api/keepalive');
+
+    const hasSession = Boolean(req.cookies.get('kb_sso')?.value);
+
+    if (!isExempt && !hasSession) {
+      const origin = req.nextUrl.origin;
+      const desired = `${req.nextUrl.pathname}${req.nextUrl.search}`;
+      const callback = `${origin}/api/auth/callback?returnTo=${encodeURIComponent(desired)}`;
+      const redirectTo = `${ssoLoginUrl}${ssoLoginUrl.includes('?') ? '&' : '?'}returnTo=${encodeURIComponent(callback)}`;
+      return NextResponse.redirect(redirectTo);
+    }
+  }
+
   // Enforce allowlist only if configured and in production
   const allowEnv = process.env.ALLOW_IP_RANGES || '';
   const isProd = process.env.NODE_ENV === 'production';
