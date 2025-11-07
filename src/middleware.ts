@@ -30,7 +30,7 @@ export function middleware(req: NextRequest) {
   // which will set the kb_sso cookie and redirect to the originally requested path.
   const ssoLoginUrl = process.env.SSO_LOGIN_URL || '';
   const isProdEnv = process.env.NODE_ENV === 'production';
-  if (ssoLoginUrl && isProdEnv) {
+  if (isProdEnv) {
     const path = req.nextUrl.pathname;
     const isExempt =
       path.startsWith('/api/auth/callback') ||
@@ -40,11 +40,23 @@ export function middleware(req: NextRequest) {
     const hasSession = Boolean(req.cookies.get('kb_sso')?.value);
 
     if (!isExempt && !hasSession) {
-      const origin = req.nextUrl.origin;
-      const desired = `${req.nextUrl.pathname}${req.nextUrl.search}`;
-      const callback = `${origin}/api/auth/callback?returnTo=${encodeURIComponent(desired)}`;
-      const redirectTo = `${ssoLoginUrl}${ssoLoginUrl.includes('?') ? '&' : '?'}returnTo=${encodeURIComponent(callback)}`;
-      return NextResponse.redirect(redirectTo);
+      if (ssoLoginUrl) {
+        const origin = req.nextUrl.origin;
+        const desired = `${req.nextUrl.pathname}${req.nextUrl.search}`;
+        const callback = `${origin}/api/auth/callback?returnTo=${encodeURIComponent(desired)}`;
+        const redirectTo = `${ssoLoginUrl}${ssoLoginUrl.includes('?') ? '&' : '?'}returnTo=${encodeURIComponent(callback)}`;
+        return NextResponse.redirect(redirectTo);
+      } else {
+        // Fail closed if SSO is not configured in production
+        return new NextResponse(
+          `<html><head><meta charset="utf-8"><title>Access Restricted</title></head>
+           <body style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:2rem">
+             <h1 style="margin:0 0 0.5rem">Access Restricted</h1>
+             <p style="margin:0 0 1rem;color:#555">SSO is not configured (missing SSO_LOGIN_URL). Please contact the administrator.</p>
+           </body></html>`,
+          { status: 401, headers: { 'content-type': 'text/html; charset=utf-8' } }
+        );
+      }
     }
   }
 
