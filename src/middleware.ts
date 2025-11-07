@@ -52,7 +52,7 @@ export function middleware(req: NextRequest) {
           `<html><head><meta charset="utf-8"><title>Access Restricted</title></head>
            <body style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:2rem">
              <h1 style="margin:0 0 0.5rem">Access Restricted</h1>
-             <p style="margin:0 0 1rem;color:#555">SSO is not configured (missing SSO_LOGIN_URL). Please contact the administrator.</p>
+             <p style="margin:0 0 1rem;color:#555">Access Restricted. Please access the Knowledge Base via Chronos http://chronos.vml.com</p>
            </body></html>`,
           { status: 401, headers: { 'content-type': 'text/html; charset=utf-8' } }
         );
