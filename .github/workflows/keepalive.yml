@@ -1,0 +1,52 @@
+# Keeps the Supabase project warm by pinging your deployed keepalive endpoint once a day.
+# Requires a repo secret named PING_URL set to your deployed URL, e.g.:
+#   https://your-vercel-app.vercel.app/api/keepalive
+# Set it in GitHub: Settings → Secrets and variables → Actions → New repository secret → Name: PING_URL
+name: Keep Supabase Warm
+
+on:
+  schedule:
+    # Run daily at 03:17 UTC (adjust as you like)
+    - cron: "17 3 * * *"
+  workflow_dispatch: {} # allow manual runs
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PING_URL is configured
+        run: |
+          if [ -z "${{ secrets.PING_URL }}" ]; then
+            echo "ERROR: Missing PING_URL secret. Set it to your deployed /api/keepalive endpoint URL.";
+            exit 1;
+          fi
+
+      - name: Random backoff (0–120s) to stagger pings
+        run: sleep $(( RANDOM % 121 ))
+
+      - name: Ping keepalive endpoint
+        env:
+          PING_URL: ${{ secrets.PING_URL }}
+        run: |
+          echo "Pinging: $PING_URL"
+          # Capture body and HTTP code separately
+          HTTP_CODE=$(curl -sS -w "%{http_code}" -o response.json "$PING_URL")
+          echo "HTTP: $HTTP_CODE"
+          echo "Response:"
+          cat response.json || true
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Non-200 response from keepalive endpoint."
+            exit 1
+          fi
+
+          # Validate { ok: true } in JSON
+          if ! jq -e '.ok == true' response.json > /dev/null 2>&1; then
+            echo "Response JSON did not indicate ok:true"
+            exit 1
+          fi
+
+          echo "Keepalive OK."
