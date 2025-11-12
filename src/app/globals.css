@@ -25,7 +25,213 @@ html { color-scheme: light; }
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* VML Gradient Utilities */
+.vml-gradient-header {
+  background: linear-gradient(135deg, #0099FF 0%, #FF1493 100%);
+}
+
+.vml-gradient-subtle {
+  background: linear-gradient(135deg, rgba(0, 153, 255, 0.05) 0%, rgba(255, 20, 147, 0.05) 100%);
+}
+
+/* Glass Effect (subtle for sidebar) */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Card Hover Effects */
+.card-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: scale(1.02);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border-left-color: #0099FF;
+}
+
+/* Smooth transitions */
+.transition-smooth {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* CSS-based Flat Icons */
+.icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  position: relative;
+}
+
+.icon-building::before {
+  content: '';
+  position: absolute;
+  width: 80%;
+  height: 90%;
+  left: 10%;
+  top: 5%;
+  border: 2px solid currentColor;
+  border-bottom: 3px solid currentColor;
+  background: linear-gradient(to bottom, transparent 0%, transparent 33%, currentColor 33%, currentColor 35%, transparent 35%, transparent 66%, currentColor 66%, currentColor 68%, transparent 68%);
+}
+
+.icon-building::after {
+  content: '';
+  position: absolute;
+  width: 30%;
+  height: 25%;
+  left: 35%;
+  bottom: 0;
+  border: 2px solid currentColor;
+  border-top: none;
+  background: transparent;
+}
+
+.icon-users::before {
+  content: '';
+  position: absolute;
+  width: 35%;
+  height: 35%;
+  left: 10%;
+  top: 10%;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.icon-users::after {
+  content: '';
+  position: absolute;
+  width: 50%;
+  height: 40%;
+  left: 5%;
+  bottom: 10%;
+  border: 2px solid currentColor;
+  border-radius: 50% 50% 0 0;
+  border-bottom: none;
+}
+
+.icon-handshake::before {
+  content: '';
+  position: absolute;
+  width: 40%;
+  height: 50%;
+  left: 5%;
+  top: 25%;
+  border: 2px solid currentColor;
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  transform: rotate(-10deg);
+}
+
+.icon-handshake::after {
+  content: '';
+  position: absolute;
+  width: 40%;
+  height: 50%;
+  right: 5%;
+  top: 25%;
+  border: 2px solid currentColor;
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  transform: rotate(10deg);
+}
+
+.icon-clipboard::before {
+  content: '';
+  position: absolute;
+  width: 70%;
+  height: 85%;
+  left: 15%;
+  top: 15%;
+  border: 2px solid currentColor;
+  border-radius: 2px;
+}
+
+.icon-clipboard::after {
+  content: '';
+  position: absolute;
+  width: 30%;
+  height: 15%;
+  left: 35%;
+  top: 10%;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+  background: currentColor;
+}
+
+.icon-book::before {
+  content: '';
+  position: absolute;
+  width: 70%;
+  height: 80%;
+  left: 15%;
+  top: 10%;
+  border: 2px solid currentColor;
+  border-left: 4px solid currentColor;
+  border-radius: 0 2px 2px 0;
+}
+
+.icon-book::after {
+  content: '';
+  position: absolute;
+  width: 45%;
+  height: 3px;
+  left: 27.5%;
+  top: 35%;
+  background: currentColor;
+  box-shadow: 0 12px 0 currentColor, 0 24px 0 currentColor;
+}
+
+.icon-chevron-down {
+  transition: transform 0.3s ease;
+}
+
+.icon-chevron-down::before {
+  content: '';
+  position: absolute;
+  width: 50%;
+  height: 50%;
+  left: 25%;
+  top: 20%;
+  border-right: 2.5px solid currentColor;
+  border-bottom: 2.5px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.icon-chevron-down.rotated {
+  transform: rotate(-180deg);
+}
+
+.icon-arrow-right::before {
+  content: '';
+  position: absolute;
+  width: 60%;
+  height: 2.5px;
+  left: 10%;
+  top: 50%;
+  background: currentColor;
+  transform: translateY(-50%);
+}
+
+.icon-arrow-right::after {
+  content: '';
+  position: absolute;
+  width: 35%;
+  height: 35%;
+  right: 10%;
+  top: 32.5%;
+  border-right: 2.5px solid currentColor;
+  border-top: 2.5px solid currentColor;
+  transform: rotate(45deg);
 }
 
 /* Ensure consistent form control colors across browsers */
