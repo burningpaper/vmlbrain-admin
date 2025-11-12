@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supa } from '@/lib/supabase';
 import Link from 'next/link';
 import Image from 'next/image';
+import { RiBuilding2Line, RiTeamLine, RiHandHeartLine, RiClipboardLine, RiBookOpenLine, RiArrowRightSLine } from 'react-icons/ri';
 
 type Page = {
   slug: string;
@@ -65,14 +66,31 @@ export default function HomePage() {
     fetchData();
   }, []);
 
+  // Icon components map
+  const iconMap: Record<string, React.ReactNode> = {
+    building: <RiBuilding2Line className="text-vml-blue" size={28} />,
+    users: <RiTeamLine className="text-vml-blue" size={28} />,
+    handshake: <RiHandHeartLine className="text-vml-blue" size={28} />,
+    clipboard: <RiClipboardLine className="text-vml-blue" size={28} />,
+    book: <RiBookOpenLine className="text-vml-blue" size={28} />,
+  };
+
+  const sidebarIconMap: Record<string, React.ReactNode> = {
+    building: <RiBuilding2Line className="text-vml-blue" size={18} />,
+    users: <RiTeamLine className="text-vml-blue" size={18} />,
+    handshake: <RiHandHeartLine className="text-vml-blue" size={18} />,
+    clipboard: <RiClipboardLine className="text-vml-blue" size={18} />,
+    book: <RiBookOpenLine className="text-vml-blue" size={18} />,
+  };
+
   // Smart categorization function
   const categorizePages = (pages: Page[]): Category[] => {
     const categories: Category[] = [
-      { name: 'About VML SA', icon: 'icon-building', pages: [] },
-      { name: 'People & Culture', icon: 'icon-users', pages: [] },
-      { name: 'Client Operations', icon: 'icon-handshake', pages: [] },
-      { name: 'Policy & Governance', icon: 'icon-clipboard', pages: [] },
-      { name: 'General Knowledge', icon: 'icon-book', pages: [] },
+      { name: 'About VML SA', icon: 'building', pages: [] },
+      { name: 'People & Culture', icon: 'users', pages: [] },
+      { name: 'Client Operations', icon: 'handshake', pages: [] },
+      { name: 'Policy & Governance', icon: 'clipboard', pages: [] },
+      { name: 'General Knowledge', icon: 'book', pages: [] },
     ];
 
     pages.forEach((page) => {
@@ -241,7 +259,7 @@ export default function HomePage() {
                       }}
                       className="w-full text-left text-sm text-gray-700 hover:text-vml-blue hover:bg-gray-100 px-3 py-2 rounded-md transition-smooth flex items-center gap-2"
                     >
-                      <i className={`icon ${cat.icon} text-vml-blue`} style={{ fontSize: '1.1rem' }}></i>
+                      {sidebarIconMap[cat.icon]}
                       <span>{cat.name}</span>
                       <span className="ml-auto text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
                         {cat.pages.length}
@@ -266,7 +284,7 @@ export default function HomePage() {
                       if (window.innerWidth < 1024) setSidebarOpen(false);
                     }}
                   >
-                    <i className="icon icon-users text-vml-blue" style={{ fontSize: '1rem' }}></i>
+                    <RiTeamLine className="text-vml-blue" size={16} />
                     <span>People Directory</span>
                   </Link>
                 </li>
@@ -278,7 +296,7 @@ export default function HomePage() {
                       if (window.innerWidth < 1024) setSidebarOpen(false);
                     }}
                   >
-                    <i className="icon icon-clipboard text-vml-blue" style={{ fontSize: '1rem' }}></i>
+                    <RiClipboardLine className="text-vml-blue" size={16} />
                     <span>Files</span>
                   </Link>
                 </li>
@@ -308,7 +326,12 @@ export default function HomePage() {
         {/* Main Content Area */}
         <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-8">
           {/* Welcome Banner */}
-          <div className="mb-8 bg-gradient-to-r from-vml-blue to-vml-pink rounded-xl p-6 sm:p-8 text-white shadow-lg">
+          <div 
+            className="mb-8 rounded-xl p-6 sm:p-8 text-white shadow-lg"
+            style={{
+              background: 'linear-gradient(to right, #0099FF, #FF1493)'
+            }}
+          >
             <h2 className="text-2xl sm:text-3xl font-bold mb-2">
               Welcome to the VML Knowledge Base
             </h2>
@@ -326,7 +349,7 @@ export default function HomePage() {
             >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                  <i className={`icon ${category.icon} text-vml-blue`} style={{ fontSize: '1.8rem' }}></i>
+                  {iconMap[category.icon]}
                   {category.name}
                 </h2>
                 <span className="text-sm text-gray-500 font-medium">
@@ -436,8 +459,8 @@ export default function HomePage() {
           {people.length > 0 && (
             <section className="mb-10">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <span className="text-3xl">👥</span>
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                  <RiTeamLine className="text-vml-blue" size={28} />
                   People
                 </h2>
                 <Link

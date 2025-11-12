@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { RiBuilding2Line, RiTeamLine, RiHandHeartLine, RiClipboardLine, RiBookOpenLine, RiArrowRightSLine, RiArrowDownSLine } from 'react-icons/ri';
 
 interface NavItem {
   slug: string;
@@ -16,7 +17,7 @@ interface SidebarNavProps {
 
 interface Category {
   name: string;
-  iconClass: string;
+  icon: React.ReactNode;
   pages: NavItem[];
 }
 
@@ -27,11 +28,11 @@ export default function SidebarNav({ items }: SidebarNavProps) {
   // Smart categorization function
   const categorizePages = (pages: NavItem[]): Category[] => {
     const categories: Category[] = [
-      { name: 'About VML SA', iconClass: 'icon-building', pages: [] },
-      { name: 'People & Culture', iconClass: 'icon-users', pages: [] },
-      { name: 'Client Operations', iconClass: 'icon-handshake', pages: [] },
-      { name: 'Policy & Governance', iconClass: 'icon-clipboard', pages: [] },
-      { name: 'General Knowledge', iconClass: 'icon-book', pages: [] },
+      { name: 'About VML SA', icon: <RiBuilding2Line className="text-vml-blue" size={18} />, pages: [] },
+      { name: 'People & Culture', icon: <RiTeamLine className="text-vml-blue" size={18} />, pages: [] },
+      { name: 'Client Operations', icon: <RiHandHeartLine className="text-vml-blue" size={18} />, pages: [] },
+      { name: 'Policy & Governance', icon: <RiClipboardLine className="text-vml-blue" size={18} />, pages: [] },
+      { name: 'General Knowledge', icon: <RiBookOpenLine className="text-vml-blue" size={18} />, pages: [] },
     ];
 
     // Get only top-level pages (no parent)
@@ -134,10 +135,13 @@ export default function SidebarNav({ items }: SidebarNavProps) {
               className="w-full flex items-center justify-between px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-md transition-smooth"
             >
               <span className="flex items-center gap-2">
-                <i className={`icon ${category.iconClass} text-vml-blue`} style={{ fontSize: '1.1rem' }}></i>
+                {category.icon}
                 <span>{category.name}</span>
               </span>
-              <i className={`icon icon-chevron-down text-gray-500 ${isExpanded ? 'rotated' : ''}`} style={{ fontSize: '0.8rem' }}></i>
+              <RiArrowDownSLine 
+                className={`text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+                size={16} 
+              />
             </button>
 
             {isExpanded && (
@@ -173,7 +177,7 @@ export default function SidebarNav({ items }: SidebarNavProps) {
                                     : 'text-gray-600 hover:bg-gray-100'
                                 }`}
                               >
-                                <i className="icon icon-arrow-right" style={{ fontSize: '0.7rem' }}></i>
+                                <RiArrowRightSLine size={14} />
                                 <span>{child.title}</span>
                               </Link>
                             );
