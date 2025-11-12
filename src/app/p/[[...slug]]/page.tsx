@@ -182,7 +182,7 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
               © {new Date().getFullYear()} VML. All rights reserved.
             </p>
             <p className="text-sm text-gray-600">
-              Need help? Contact your HR department
+              Need help? Contact the People Team
             </p>
           </div>
         </div>

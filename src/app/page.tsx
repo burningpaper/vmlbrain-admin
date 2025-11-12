@@ -384,9 +384,9 @@ export default function HomePage() {
                           <div className="border-t border-gray-100 pt-4 mt-4">
                             <button
                               onClick={() => toggleCategory(page.slug)}
-                              className="flex items-center justify-between w-full text-xs font-medium text-gray-500 uppercase mb-2 hover:text-vml-blue transition-smooth"
+                              className="flex items-center justify-between w-full text-xs font-medium text-gray-500 uppercase hover:text-vml-blue transition-smooth"
                             >
-                              <span>Sub-pages ({children.length})</span>
+                              <span>Expand ({children.length})</span>
                               <svg
                                 className={`w-4 h-4 transition-transform ${
                                   isExpanded ? 'rotate-180' : ''
@@ -405,7 +405,7 @@ export default function HomePage() {
                             </button>
 
                             {isExpanded && (
-                              <ul className="space-y-1 animate-fade-in">
+                              <ul className="space-y-1 animate-fade-in mt-2">
                                 {children.map((child) => (
                                   <li key={child.slug}>
                                     <Link
@@ -418,12 +418,6 @@ export default function HomePage() {
                                   </li>
                                 ))}
                               </ul>
-                            )}
-
-                            {!isExpanded && children.length > 0 && (
-                              <p className="text-xs text-gray-400">
-                                Click to view {children.length} sub-page{children.length > 1 ? 's' : ''}
-                              </p>
                             )}
                           </div>
                         )}
@@ -540,7 +534,7 @@ export default function HomePage() {
               © {new Date().getFullYear()} VML. All rights reserved.
             </p>
             <p className="text-sm text-gray-600">
-              Need help? Contact your HR department
+              Need help? Contact the People Team
             </p>
           </div>
         </div>
