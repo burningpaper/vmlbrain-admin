@@ -345,7 +345,7 @@ export default function HomePage() {
             <section
               key={category.name}
               id={`category-${category.name.replace(/\s+/g, '-').toLowerCase()}`}
-              className="mb-10"
+              className="mb-10 scroll-mt-24"
             >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
