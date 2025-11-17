@@ -75,6 +75,19 @@ Images:
   <img src="assets://filename" alt="…">
   The importer will upload and rewrite to a permanent URL.
 
+Video Embeds (no iframes):
+- Do NOT include <iframe> tags in body_html.
+- To embed a video inline on the page, include either:
+  - A standalone paragraph containing a bare link to YouTube/Vimeo/MP4, e.g.:
+    <p><a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ">https://www.youtube.com/watch?v=dQw4w9WgXcQ</a></p>
+    <p><a href="https://vimeo.com/123456789">https://vimeo.com/123456789</a></p>
+    <p><a href="https://cdn.example.com/file.mp4">https://cdn.example.com/file.mp4</a></p>
+  - Or a shortcode in its own paragraph:
+    <p>{{youtube:VIDEO_ID}}</p>
+    <p>{{vimeo:VIDEO_ID}}</p>
+    <p>{{video:https://cdn.example.com/file.mp4}}</p>
+- Only YouTube, Vimeo, and direct .mp4/.webm/.ogg sources are embedded.
+
 Headings:
 - Start at <h2> for major sections (H1 is the page title)
 - Use <h3>/<h4> for subsections

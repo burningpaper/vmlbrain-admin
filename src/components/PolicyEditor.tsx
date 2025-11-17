@@ -175,6 +175,44 @@ export default function PolicyEditor({
     editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
   }, [editor]);
 
+  const insertVideo = useCallback(() => {
+    if (!editor) return;
+    const input = window.prompt('Paste a YouTube/Vimeo/MP4 URL:');
+    if (!input) return;
+    const url = input.trim();
+    try {
+      // Ensure it's a valid URL
+      const u = new URL(url);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('Invalid protocol');
+      const safe = url.replace(/"/g, '"');
+      editor.chain().focus().insertContent(`<p><a href="${safe}">${safe}</a></p>`).run();
+    } catch {
+      alert('Please enter a valid URL starting with https://');
+    }
+  }, [editor]);
+
+  const insertVideoFromFile = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'video/mp4,video/webm,video/ogg,video/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      if (!token) {
+        alert('Please enter your EDIT_TOKEN in the Admin panel to upload videos.');
+        return;
+      }
+      try {
+        const url = await uploadFile(file, token);
+        const safe = url.replace(/"/g, '"');
+        editor?.chain().focus().insertContent(`<p><a href="${safe}">${safe}</a></p>`).run();
+      } catch (error) {
+        alert('Video upload failed: ' + error);
+      }
+    };
+    input.click();
+  }, [editor, token]);
+
 
   const insertImageFromFile = useCallback(() => {
     const input = document.createElement('input');
@@ -300,6 +338,22 @@ export default function PolicyEditor({
           title="Add Link"
         >
           🔗 Link
+        </button>
+        <button 
+          type="button" 
+          onClick={insertVideo}
+          className="px-3 py-1.5 rounded hover:bg-gray-100 bg-gray-50"
+          title="Insert Video (YouTube/Vimeo/MP4)"
+        >
+          🎬 Video
+        </button>
+        <button 
+          type="button" 
+          onClick={insertVideoFromFile}
+          className="px-3 py-1.5 rounded hover:bg-gray-100 bg-gray-50"
+          title="Upload Video (MP4/WEBM/OGG)"
+        >
+          ⬆️ Upload Video
         </button>
         <button 
           type="button" 

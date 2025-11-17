@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import SidebarNav from '@/components/SidebarNav';
 import BoxExplorer from '@/components/BoxExplorer';
+import { renderEmbeds } from '@/lib/renderEmbeds';
 
 export const revalidate = 0;
 export const dynamic = 'force-dynamic';
@@ -153,7 +154,7 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
               )}
               <div
                 className="prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-vml-blue hover:prose-a:text-vml-pink prose-table:border-collapse prose-table:border prose-table:border-gray-300 prose-th:border prose-th:border-gray-300 prose-th:bg-gray-100 prose-th:p-3 prose-th:text-left prose-td:border prose-td:border-gray-300 prose-td:p-3"
-                dangerouslySetInnerHTML={{ __html: policy.body_md }}
+                dangerouslySetInnerHTML={{ __html: renderEmbeds(policy.body_md) }}
               />
             </article>
           </main>

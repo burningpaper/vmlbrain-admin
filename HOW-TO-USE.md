@@ -137,6 +137,28 @@ Three ways to add images:
 
 Images are automatically uploaded to Supabase Storage (`policy-assets` bucket)
 
+### Videos
+You can now embed videos that play inline on article pages.
+
+Two easy options:
+
+1) Paste a YouTube/Vimeo/MP4 link on its own line
+   - Click the 🎬 Video button in the toolbar and paste the URL, or just paste the URL in the editor
+   - If the link appears as a standalone paragraph, it will render as an inline player on the page
+   - Examples (one per paragraph):
+     - https://www.youtube.com/watch?v=dQw4w9WgXcQ
+     - https://vimeo.com/123456789
+     - https://cdn.example.com/training/intro.mp4
+
+2) Use shortcodes (also on their own line)
+   - {{youtube:VIDEO_ID}}
+   - {{vimeo:VIDEO_ID}}
+   - {{video:https://cdn.example.com/file.mp4}}
+
+Notes:
+- Only YouTube, Vimeo, and direct .mp4/.webm/.ogg links are embedded.
+- Do not paste <iframe> tags — the system creates the iframe safely for you.
+
 ### Tables
 1. Click ⊞ button
 2. A 3x3 table with headers is inserted
