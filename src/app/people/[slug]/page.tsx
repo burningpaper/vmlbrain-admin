@@ -38,9 +38,14 @@ export default async function ProfilePage({ params }: { params: Promise<{ slug: 
   // Load all approved policy pages for right-hand navigation (reuse existing navigation)
   const { data: allPages } = await supa
     .from('policies')
-    .select('slug, title, parent_slug')
+    .select('slug, title, parent_slug, section_key')
     .eq('status', 'approved')
     .order('title');
+
+  const { data: sections } = await supa
+    .from('sections')
+    .select('key, name, icon, sort_order')
+    .order('sort_order');
 
   const fullName = `${profile.first_name} ${profile.last_name}`.trim();
 
@@ -124,7 +129,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ slug: 
           {/* Right sidebar: navigation */}
           <aside className="hidden lg:block w-80 border-l border-gray-200 bg-gray-50 sticky top-16 h-screen overflow-y-auto">
             <div className="p-6 space-y-6">
-              <SidebarNav items={allPages || []} />
+              <SidebarNav items={allPages || []} sections={sections || []} />
             </div>
           </aside>
         </div>

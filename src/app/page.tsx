@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supa } from '@/lib/supabase';
 import Link from 'next/link';
 import Image from 'next/image';
-import { RiBuilding2Line, RiTeamLine, RiHandHeartLine, RiClipboardLine, RiBookOpenLine, RiArrowRightSLine } from 'react-icons/ri';
+import { RiBuilding2Line, RiTeamLine, RiHandHeartLine, RiClipboardLine, RiBookOpenLine } from 'react-icons/ri';
 
 type Page = {
   slug: string;
@@ -114,6 +114,7 @@ export default function HomePage() {
   const getChildren = (parentSlug: string) => {
     return allPages.filter((p) => p.parent_slug === parentSlug);
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const toggleCategory = (categoryName: string) => {
     const newExpanded = new Set(expandedCategories);
