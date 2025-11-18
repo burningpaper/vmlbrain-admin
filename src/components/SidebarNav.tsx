@@ -9,10 +9,19 @@ interface NavItem {
   slug: string;
   title: string;
   parent_slug: string | null;
+  section_key?: string | null;
+}
+
+interface SectionRow {
+  key: string;
+  name: string;
+  icon: string | null;
+  sort_order: number | null;
 }
 
 interface SidebarNavProps {
   items: NavItem[];
+  sections: SectionRow[];
 }
 
 interface Category {
@@ -21,71 +30,33 @@ interface Category {
   pages: NavItem[];
 }
 
-export default function SidebarNav({ items }: SidebarNavProps) {
+export default function SidebarNav({ items, sections }: SidebarNavProps) {
   const pathname = usePathname();
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
 
-  // Smart categorization function
-  const categorizePages = (pages: NavItem[]): Category[] => {
-    const categories: Category[] = [
-      { name: 'About VML SA', icon: <RiBuilding2Line className="text-vml-blue" size={18} />, pages: [] },
-      { name: 'People & Culture', icon: <RiTeamLine className="text-vml-blue" size={18} />, pages: [] },
-      { name: 'Client Operations', icon: <RiHandHeartLine className="text-vml-blue" size={18} />, pages: [] },
-      { name: 'Policy & Governance', icon: <RiClipboardLine className="text-vml-blue" size={18} />, pages: [] },
-      { name: 'General Knowledge', icon: <RiBookOpenLine className="text-vml-blue" size={18} />, pages: [] },
-    ];
+  // Categorization based on DB sections (no heuristics)
+  const categorizePages = (pages: NavItem[], secs: SectionRow[]): Category[] => {
+    const iconMap: Record<string, React.ReactNode> = {
+      building: <RiBuilding2Line className="text-vml-blue" size={18} />,
+      users: <RiTeamLine className="text-vml-blue" size={18} />,
+      handshake: <RiHandHeartLine className="text-vml-blue" size={18} />,
+      clipboard: <RiClipboardLine className="text-vml-blue" size={18} />,
+      book: <RiBookOpenLine className="text-vml-blue" size={18} />,
+    };
 
-    // Get only top-level pages (no parent)
     const topLevelPages = pages.filter(p => !p.parent_slug || p.parent_slug === '');
+    const cats: Category[] = secs.map((sec) => ({
+      name: sec.name,
+      icon: iconMap[(sec.icon || 'book') as string] || iconMap['book'],
+      pages: topLevelPages.filter(p => (p.section_key || null) === sec.key),
+    }));
 
-    topLevelPages.forEach((page) => {
-      const lowerTitle = page.title.toLowerCase();
-      const lowerSlug = page.slug.toLowerCase();
-
-      if (
-        lowerSlug.includes('business-structure') ||
-        lowerSlug.includes('exco') ||
-        lowerSlug.includes('geography') ||
-        lowerTitle.includes('company') ||
-        lowerTitle.includes('about') ||
-        lowerTitle.includes('vml sa')
-      ) {
-        categories[0].pages.push(page);
-      } else if (
-        lowerSlug.includes('joy') ||
-        lowerSlug.includes('onboarding') ||
-        lowerSlug.includes('people') ||
-        lowerSlug.includes('culture') ||
-        lowerSlug.includes('hr') ||
-        lowerSlug.includes('employee')
-      ) {
-        categories[1].pages.push(page);
-      } else if (
-        lowerSlug.includes('client') ||
-        lowerSlug.includes('engagement') ||
-        lowerSlug.includes('radar') ||
-        lowerSlug.includes('project') ||
-        lowerSlug.includes('sales')
-      ) {
-        categories[2].pages.push(page);
-      } else if (
-        lowerSlug.includes('policy') ||
-        lowerSlug.includes('handbook') ||
-        lowerSlug.includes('compliance') ||
-        lowerSlug.includes('governance') ||
-        lowerSlug.includes('legal')
-      ) {
-        categories[3].pages.push(page);
-      } else {
-        categories[4].pages.push(page);
-      }
-    });
-
-    return categories.filter((cat) => cat.pages.length > 0);
+    // Hide empty sections in the narrow right-hand nav to keep it short
+    return cats.filter(c => c.pages.length > 0);
   };
 
-  const categories = useMemo(() => categorizePages(items), [items]);
+  const categories = useMemo(() => categorizePages(items, sections), [items, sections]);
 
   // Get child pages for a parent slug
   const getChildren = (parentSlug: string): NavItem[] => {

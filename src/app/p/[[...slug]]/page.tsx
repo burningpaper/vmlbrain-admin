@@ -69,12 +69,18 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
     return '/p/' + items.slice(0, endIndex + 1).map(item => item.slug).join('/');
   };
 
-  // Get all pages for navigation
+  // Get all pages for navigation (include section_key for grouping in SidebarNav)
   const { data: allPages } = await supa
     .from('policies')
-    .select('slug, title, parent_slug')
+    .select('slug, title, parent_slug, section_key')
     .eq('status', 'approved')
     .order('title');
+
+  // Get sections used for grouping
+  const { data: sections } = await supa
+    .from('sections')
+    .select('key, name, icon, sort_order')
+    .order('sort_order');
 
   // Get direct children of this page (approved only)
   const { data: children } = await supa
@@ -189,7 +195,7 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
           {/* Right sidebar: navigation + related files */}
           <aside className="hidden lg:block w-80 border-l border-gray-200 bg-gray-50 sticky top-[89px] h-[calc(100vh-89px)] overflow-y-auto">
             <div className="p-6 space-y-6">
-              <SidebarNav items={allPages || []} />
+              <SidebarNav items={allPages || []} sections={sections || []} />
               {/* Related files from Box (read/preview) */}
               {(policy.box_folder_id != null || policy.box_file_ids != null) && (
                 <BoxExplorer
