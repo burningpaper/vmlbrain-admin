@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { RiBuilding2Line, RiTeamLine, RiHandHeartLine, RiClipboardLine, RiBookOpenLine, RiArrowRightSLine, RiArrowDownSLine } from 'react-icons/ri';
 
 interface NavItem {
@@ -24,6 +24,7 @@ interface Category {
 export default function SidebarNav({ items }: SidebarNavProps) {
   const pathname = usePathname();
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
 
   // Smart categorization function
   const categorizePages = (pages: NavItem[]): Category[] => {
@@ -84,7 +85,7 @@ export default function SidebarNav({ items }: SidebarNavProps) {
     return categories.filter((cat) => cat.pages.length > 0);
   };
 
-  const categories = categorizePages(items);
+  const categories = useMemo(() => categorizePages(items), [items]);
 
   // Get child pages for a parent slug
   const getChildren = (parentSlug: string): NavItem[] => {
@@ -94,14 +95,25 @@ export default function SidebarNav({ items }: SidebarNavProps) {
   // Smart default: expand category containing current page
   useEffect(() => {
     const currentSlug = pathname.split('/').pop();
+
+    // Expand the category that contains the current page (or its parent)
     const categoryWithCurrentPage = categories.find((cat) =>
       cat.pages.some((page) => page.slug === currentSlug || getChildren(page.slug).some(child => child.slug === currentSlug))
     );
-
     if (categoryWithCurrentPage) {
       setExpandedCategories(new Set([categoryWithCurrentPage.name]));
     }
-  }, [pathname]);
+
+    // Default expand: the parent of current page, or the page itself if top-level
+    const currentItem = items.find(i => i.slug === currentSlug);
+    const initParents = new Set<string>();
+    if (currentItem?.parent_slug) {
+      initParents.add(currentItem.parent_slug);
+    } else if (currentItem) {
+      initParents.add(currentItem.slug);
+    }
+    setExpandedParents(initParents);
+  }, [pathname, items]);
 
   const toggleCategory = (categoryName: string) => {
     setExpandedCategories((prev) => {
@@ -111,6 +123,14 @@ export default function SidebarNav({ items }: SidebarNavProps) {
       } else {
         next.add(categoryName);
       }
+      return next;
+    });
+  };
+
+  const toggleParent = (slug: string) => {
+    setExpandedParents((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug); else next.add(slug);
       return next;
     });
   };
@@ -149,21 +169,38 @@ export default function SidebarNav({ items }: SidebarNavProps) {
                 {category.pages.map((page) => {
                   const children = getChildren(page.slug);
                   const isActive = isPageActive(page.slug);
+                  const hasChildren = children.length > 0;
+                  const parentOpen = expandedParents.has(page.slug);
 
                   return (
                     <div key={page.slug}>
-                      <Link
-                        href={`/p/${page.slug}`}
-                        className={`block py-1.5 px-3 ml-6 text-sm rounded transition-smooth ${
-                          isActive
-                            ? 'bg-vml-blue bg-opacity-10 text-vml-blue font-medium'
-                            : 'text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        {page.title}
-                      </Link>
+                      <div className="flex items-center">
+                        <Link
+                          href={`/p/${page.slug}`}
+                          className={`block py-1.5 px-3 ml-6 text-sm rounded transition-smooth ${
+                            isActive
+                              ? 'bg-vml-blue bg-opacity-10 text-vml-blue font-medium'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          {page.title}
+                        </Link>
+                        {hasChildren && (
+                          <button
+                            type="button"
+                            onClick={() => toggleParent(page.slug)}
+                            aria-label={parentOpen ? 'Collapse subpages' : 'Expand subpages'}
+                            className="ml-auto mr-2 p-1 rounded hover:bg-gray-100"
+                          >
+                            <RiArrowDownSLine
+                              className={`text-gray-500 transition-transform ${parentOpen ? 'rotate-180' : ''}`}
+                              size={16}
+                            />
+                          </button>
+                        )}
+                      </div>
 
-                      {children.length > 0 && (
+                      {hasChildren && parentOpen && (
                         <div className="ml-4 mt-0.5 space-y-0.5">
                           {children.map((child) => {
                             const isChildActive = isPageActive(child.slug);
