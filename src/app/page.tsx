@@ -11,7 +11,16 @@ type Page = {
   title: string;
   summary: string | null;
   parent_slug: string | null;
+  section_key: string | null;
 };
+
+type SectionRow = {
+  key: string;
+  name: string;
+  icon: string | null;
+  sort_order: number | null;
+};
+
 
 type Person = {
   slug: string;
@@ -22,6 +31,7 @@ type Person = {
 };
 
 type Category = {
+  key: string;
   name: string;
   icon: string;
   pages: Page[];
@@ -30,6 +40,7 @@ type Category = {
 export default function HomePage() {
   const [topLevelPages, setTopLevelPages] = useState<Page[]>([]);
   const [allPages, setAllPages] = useState<Page[]>([]);
+  const [sections, setSections] = useState<SectionRow[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -39,17 +50,23 @@ export default function HomePage() {
       // Get all top-level pages (no parent)
       const { data: topData } = await supa
         .from('policies')
-        .select('slug, title, summary, parent_slug')
+        .select('slug, title, summary, parent_slug, section_key')
         .or('parent_slug.is.null,parent_slug.eq.')
         .eq('status', 'approved')
         .order('title');
 
-      // Get all pages for categories
+      // Get all pages for children lookup
       const { data: allData } = await supa
         .from('policies')
-        .select('slug, title, summary, parent_slug')
+        .select('slug, title, summary, parent_slug, section_key')
         .eq('status', 'approved')
         .order('title');
+
+      // Get sections for homepage grouping
+      const { data: sectionsData } = await supa
+        .from('sections')
+        .select('key, name, icon, sort_order')
+        .order('sort_order');
 
       const { data: peopleData } = await supa
         .from('profiles')
@@ -61,6 +78,7 @@ export default function HomePage() {
       setTopLevelPages((topData as Page[]) || []);
       setAllPages((allData as Page[]) || []);
       setPeople((peopleData as Person[]) || []);
+      setSections((sectionsData as SectionRow[]) || []);
     }
 
     fetchData();
@@ -83,63 +101,14 @@ export default function HomePage() {
     book: <RiBookOpenLine className="text-vml-blue" size={18} />,
   };
 
-  // Smart categorization function
-  const categorizePages = (pages: Page[]): Category[] => {
-    const categories: Category[] = [
-      { name: 'About VML SA', icon: 'building', pages: [] },
-      { name: 'People & Culture', icon: 'users', pages: [] },
-      { name: 'Client Operations', icon: 'handshake', pages: [] },
-      { name: 'Policy & Governance', icon: 'clipboard', pages: [] },
-      { name: 'General Knowledge', icon: 'book', pages: [] },
-    ];
-
-    pages.forEach((page) => {
-      const lowerTitle = page.title.toLowerCase();
-      const lowerSlug = page.slug.toLowerCase();
-
-      if (
-        lowerSlug.includes('business-structure') ||
-        lowerSlug.includes('exco') ||
-        lowerSlug.includes('geography') ||
-        lowerTitle.includes('company') ||
-        lowerTitle.includes('about') ||
-        lowerTitle.includes('vml sa')
-      ) {
-        categories[0].pages.push(page);
-      } else if (
-        lowerSlug.includes('joy') ||
-        lowerSlug.includes('onboarding') ||
-        lowerSlug.includes('people') ||
-        lowerSlug.includes('culture') ||
-        lowerSlug.includes('hr') ||
-        lowerSlug.includes('employee')
-      ) {
-        categories[1].pages.push(page);
-      } else if (
-        lowerSlug.includes('client') ||
-        lowerSlug.includes('engagement') ||
-        lowerSlug.includes('radar') ||
-        lowerSlug.includes('project') ||
-        lowerSlug.includes('sales')
-      ) {
-        categories[2].pages.push(page);
-      } else if (
-        lowerSlug.includes('policy') ||
-        lowerSlug.includes('handbook') ||
-        lowerSlug.includes('compliance') ||
-        lowerSlug.includes('governance') ||
-        lowerSlug.includes('legal')
-      ) {
-        categories[3].pages.push(page);
-      } else {
-        categories[4].pages.push(page);
-      }
-    });
-
-    return categories.filter((cat) => cat.pages.length > 0);
-  };
-
-  const categories = categorizePages(topLevelPages);
+  // Group pages by explicit sections from the database
+  const categories: Category[] = (sections || [])
+    .map((sec) => ({
+      key: sec.key,
+      name: sec.name,
+      icon: (sec.icon || 'book') as string,
+      pages: topLevelPages.filter((p) => p.section_key === sec.key),
+    }));
 
   // Get children for a page
   const getChildren = (parentSlug: string) => {
@@ -252,7 +221,7 @@ export default function HomePage() {
                     <button
                       onClick={() => {
                         const element = document.getElementById(
-                          `category-${cat.name.replace(/\s+/g, '-').toLowerCase()}`
+                          `section-${cat.key}`
                         );
                         element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         if (window.innerWidth < 1024) setSidebarOpen(false);
@@ -344,7 +313,7 @@ export default function HomePage() {
           {categories.map((category) => (
             <section
               key={category.name}
-              id={`category-${category.name.replace(/\s+/g, '-').toLowerCase()}`}
+              id={`section-${category.key}`}
               className="mb-10 scroll-mt-24"
             >
               <div className="flex items-center justify-between mb-4">

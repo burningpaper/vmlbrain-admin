@@ -13,6 +13,15 @@ function escapeHtmlAttr(s: string): string {
     .replace(/>/g, '>');
 }
 
+function decodeHtmlEntities(s: string): string {
+  // Decode common HTML entities in a single pass (order matters)
+  return s
+    .replace(/"/g, '"')
+    .replace(/</g, '<')
+    .replace(/>/g, '>')
+    .replace(/&/g, '&');
+}
+
 function wrapIframe(src: string, title: string): string {
   const safeSrc = escapeHtmlAttr(src);
   const safeTitle = escapeHtmlAttr(title);
@@ -72,6 +81,7 @@ function vimeoIdFromUrl(url: string): string | null {
 function isDirectVideo(url: string): boolean {
   try {
     const u = new URL(url);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
     const path = u.pathname.toLowerCase();
     return path.endsWith('.mp4') || path.endsWith('.webm') || path.endsWith('.ogg');
   } catch {
@@ -82,6 +92,13 @@ function isDirectVideo(url: string): boolean {
 export function renderEmbeds(html: string): string {
   if (!html) return html;
   let out = html;
+
+  // Basic sanitation: strip dangerous tags that might have slipped in
+  out = out
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/<(?:embed|object)\b[^<]*(?:(?!<\/(?:embed|object)>)<[^<]*)*<\/(?:embed|object)>/gi, '')
+    .replace(/<(?:iframe|embed|object)[^>]*\/>/gi, '');
 
   // Shortcodes first (only when they occupy a whole paragraph)
   out = out.replace(/<p>\s*\{\{\s*youtube\s*:\s*([A-Za-z0-9_-]{6,})\s*\}\}\s*<\/p>/g, (_m, id: string) => {
@@ -118,11 +135,12 @@ export function renderEmbeds(html: string): string {
   // Standalone links in their own paragraph -> embed
   // Matches <p><a href="...">(same url)</a></p>
   out = out.replace(/<p>\s*<a[^>]*href=\"([^\"]+)\"[^>]*>\s*\1\s*<\/a>\s*<\/p>/g, (_m, url: string) => {
-    const yid = youtubeIdFromUrl(url);
+    const raw = decodeHtmlEntities(url);
+    const yid = youtubeIdFromUrl(raw);
     if (yid) return wrapIframe(`https://www.youtube.com/embed/${yid}?rel=0&modestbranding=1`, 'YouTube video');
-    const vid = vimeoIdFromUrl(url);
+    const vid = vimeoIdFromUrl(raw);
     if (vid) return wrapIframe(`https://player.vimeo.com/video/${vid}`, 'Vimeo video');
-    if (isDirectVideo(url)) return wrapVideo(url);
+    if (isDirectVideo(raw)) return wrapVideo(raw);
     return _m;
   });
 

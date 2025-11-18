@@ -76,6 +76,14 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
     .eq('status', 'approved')
     .order('title');
 
+  // Get direct children of this page (approved only)
+  const { data: children } = await supa
+    .from('policies')
+    .select('slug, title')
+    .eq('parent_slug', actualSlug)
+    .eq('status', 'approved')
+    .order('title');
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header with VML Gradient */}
@@ -156,6 +164,25 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
                 className="prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-vml-blue hover:prose-a:text-vml-pink prose-table:border-collapse prose-table:border prose-table:border-gray-300 prose-th:border prose-th:border-gray-300 prose-th:bg-gray-100 prose-th:p-3 prose-th:text-left prose-td:border prose-td:border-gray-300 prose-td:p-3"
                 dangerouslySetInnerHTML={{ __html: renderEmbeds(policy.body_md) }}
               />
+
+              {/* Auto Table of Contents for sections (only if this page has sub-pages) */}
+              {Array.isArray(children) && children.length > 0 && (
+                <section className="mt-10">
+                  <h2 className="text-2xl font-semibold text-gray-900 mb-4">In this section</h2>
+                  <ul className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
+                    {children.map((c) => {
+                      const path = '/p/' + [...breadcrumb.map(b => b.slug), c.slug].join('/');
+                      return (
+                        <li key={c.slug} className="p-3 hover:bg-gray-50 transition-smooth">
+                          <Link href={path} className="text-vml-blue hover:text-vml-pink font-medium">
+                            {c.title}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              )}
             </article>
           </main>
 

@@ -36,6 +36,9 @@ export default function AdminPage() {
   // Box linking
   const [boxFolderId, setBoxFolderId] = useState('');
   const [boxFileIdsText, setBoxFileIdsText] = useState('');
+  // Sections
+  const [sectionKey, setSectionKey] = useState('');
+  const [sections, setSections] = useState<{ key: string; name: string }[]>([]);
 
   // Content type
   const [contentType, setContentType] = useState<'knowledge' | 'profile'>('knowledge');
@@ -59,6 +62,17 @@ export default function AdminPage() {
         .order('title', { ascending: true });
 
       if (!error && data) setList(data);
+    })();
+  }, []);
+
+  // Fetch sections for section selector
+  useEffect(() => {
+    (async () => {
+      const { data } = await supa
+        .from('sections')
+        .select('key,name')
+        .order('sort_order');
+      if (data) setSections(data as { key: string; name: string }[]);
     })();
   }, []);
 
@@ -114,6 +128,7 @@ export default function AdminPage() {
       setSummary((data as { summary?: string | null }).summary || '');
       setBodyHtml((data as { body_md?: string | null }).body_md || '<p></p>');
       setParentSlug((data as { parent_slug?: string | null }).parent_slug || '');
+      setSectionKey((data as { section_key?: string | null }).section_key || '');
       const boxFolder = (data as { box_folder_id?: string | null }).box_folder_id || '';
       const boxFiles = (data as { box_file_ids?: string[] | null }).box_file_ids || [];
       setBoxFolderId(boxFolder);
@@ -314,6 +329,7 @@ export default function AdminPage() {
         summary,
         body_md: bodyHtml,
         parent_slug: parentSlug || null,
+        section_key: sectionKey || null,
         box_folder_id: boxFolderId || null,
         box_file_ids: boxFileIdsText
           ? boxFileIdsText.split(',').map((s) => s.trim()).filter(Boolean)
@@ -492,6 +508,26 @@ export default function AdminPage() {
             </select>
             <p className="text-xs text-gray-500 mt-1">
               Select a parent to nest this page under another page
+            </p>
+          </div>
+
+          {/* Section selector */}
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">
+              Section (optional - used on the homepage)
+            </label>
+            <select
+              className="w-full border p-2 rounded bg-white"
+              value={sectionKey}
+              onChange={(e) => setSectionKey(e.target.value)}
+            >
+              <option value="">Unassigned</option>
+              {sections.map((s) => (
+                <option key={s.key} value={s.key}>{s.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Choose a section to group this article on the homepage.
             </p>
           </div>
 
