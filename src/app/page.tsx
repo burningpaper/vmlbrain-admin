@@ -44,9 +44,11 @@ export default function HomePage() {
   const [people, setPeople] = useState<Person[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
+      setIsLoading(true);
       // Get all top-level pages (no parent)
       const { data: topData } = await supa
         .from('policies')
@@ -79,6 +81,7 @@ export default function HomePage() {
       setAllPages((allData as Page[]) || []);
       setPeople((peopleData as Person[]) || []);
       setSections((sectionsData as SectionRow[]) || []);
+      setIsLoading(false);
     }
 
     fetchData();
@@ -310,114 +313,129 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* Categories */}
-          {categories.map((category) => (
-            <section
-              key={category.name}
-              id={`section-${category.key}`}
-              className="mb-10 scroll-mt-24"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                  {iconMap[category.icon]}
-                  {category.name}
-                </h2>
-                <span className="text-sm text-gray-500 font-medium">
-                  {category.pages.length} {category.pages.length === 1 ? 'item' : 'items'}
-                </span>
+          {/* Loading State */}
+          {isLoading && (
+            <div className="text-center py-16">
+              <div className="flex justify-center space-x-2 mb-4">
+                <div className="w-3 h-3 bg-vml-blue rounded-full animate-bounce"></div>
+                <div className="w-3 h-3 bg-vml-blue rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                <div className="w-3 h-3 bg-vml-blue rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
               </div>
+              <p className="text-gray-600 text-sm">Content loading...</p>
+            </div>
+          )}
 
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {category.pages.map((page) => {
-                  const children = getChildren(page.slug);
-                  const isExpanded = expandedCategories.has(page.slug);
+          {/* Categories - Flow Layout */}
+          {!isLoading && categories.length > 0 && (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {categories.map((category) => (
+                <div key={category.name} className="contents">
+                  {/* Section Header - Full Width */}
+                  <div
+                    id={`section-${category.key}`}
+                    className="col-span-full scroll-mt-24 flex items-center justify-between mb-2 mt-6 first:mt-0"
+                  >
+                    <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                      {iconMap[category.icon]}
+                      {category.name}
+                    </h2>
+                    <span className="text-sm text-gray-500 font-medium">
+                      {category.pages.length} {category.pages.length === 1 ? 'item' : 'items'}
+                    </span>
+                  </div>
 
-                  return (
-                    <div
-                      key={page.slug}
-                      className="bg-white rounded-lg border border-gray-200 border-l-4 border-l-gray-200 hover:border-l-vml-blue shadow-sm card-hover overflow-hidden"
-                    >
-                      <div className="p-6">
-                        <Link href={`/p/${page.slug}`}>
-                          <h3 className="text-lg font-semibold text-gray-900 hover:text-vml-blue mb-2 transition-smooth">
-                            {page.title}
-                          </h3>
-                        </Link>
+                  {/* Category Pages - Flow in Grid */}
+                  {category.pages.map((page) => {
+                    const children = getChildren(page.slug);
+                    const isExpanded = expandedCategories.has(page.slug);
 
-                        {page.summary && (
-                          <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                            {page.summary}
-                          </p>
-                        )}
+                    return (
+                      <div
+                        key={page.slug}
+                        className="bg-white rounded-lg border border-gray-200 border-l-4 border-l-gray-200 hover:border-l-vml-blue shadow-sm card-hover overflow-hidden"
+                      >
+                        <div className="p-6">
+                          <Link href={`/p/${page.slug}`}>
+                            <h3 className="text-lg font-semibold text-gray-900 hover:text-vml-blue mb-2 transition-smooth">
+                              {page.title}
+                            </h3>
+                          </Link>
 
-                        {children.length > 0 && (
-                          <div className="border-t border-gray-100 pt-4 mt-4">
-                            <button
-                              onClick={() => toggleCategory(page.slug)}
-                              className="flex items-center justify-between w-full text-xs font-medium text-gray-500 uppercase hover:text-vml-blue transition-smooth"
-                            >
-                              <span>Expand ({children.length})</span>
-                              <svg
-                                className={`w-4 h-4 transition-transform ${
-                                  isExpanded ? 'rotate-180' : ''
-                                }`}
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
+                          {page.summary && (
+                            <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                              {page.summary}
+                            </p>
+                          )}
+
+                          {children.length > 0 && (
+                            <div className="border-t border-gray-100 pt-4 mt-4">
+                              <button
+                                onClick={() => toggleCategory(page.slug)}
+                                className="flex items-center justify-between w-full text-xs font-medium text-gray-500 uppercase hover:text-vml-blue transition-smooth"
                               >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M19 9l-7 7-7-7"
-                                />
-                              </svg>
-                            </button>
+                                <span>Expand ({children.length})</span>
+                                <svg
+                                  className={`w-4 h-4 transition-transform ${
+                                    isExpanded ? 'rotate-180' : ''
+                                  }`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 9l-7 7-7-7"
+                                  />
+                                </svg>
+                              </button>
 
-                            {isExpanded && (
-                              <ul className="space-y-1 animate-fade-in mt-2">
-                                {children.map((child) => (
-                                  <li key={child.slug}>
-                                    <Link
-                                      href={`/p/${page.slug}/${child.slug}`}
-                                      className="text-sm text-vml-blue hover:text-vml-pink hover:underline flex items-center gap-1"
-                                    >
-                                      <span>→</span>
-                                      <span>{child.title}</span>
-                                    </Link>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        )}
+                              {isExpanded && (
+                                <ul className="space-y-1 animate-fade-in mt-2">
+                                  {children.map((child) => (
+                                    <li key={child.slug}>
+                                      <Link
+                                        href={`/p/${page.slug}/${child.slug}`}
+                                        className="text-sm text-vml-blue hover:text-vml-pink hover:underline flex items-center gap-1"
+                                      >
+                                        <span>→</span>
+                                        <span>{child.title}</span>
+                                      </Link>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          )}
 
-                        <Link
-                          href={`/p/${page.slug}`}
-                          className="inline-flex items-center gap-1 mt-4 text-sm font-medium text-vml-blue hover:text-vml-pink transition-smooth"
-                        >
-                          <span>View page</span>
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                          <Link
+                            href={`/p/${page.slug}`}
+                            className="inline-flex items-center gap-1 mt-4 text-sm font-medium text-vml-blue hover:text-vml-pink transition-smooth"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 5l7 7-7 7"
-                            />
-                          </svg>
-                        </Link>
+                            <span>View page</span>
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                          </Link>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* People Section */}
           {people.length > 0 && (
@@ -476,7 +494,7 @@ export default function HomePage() {
           )}
 
           {/* Empty State */}
-          {topLevelPages.length === 0 && (
+          {!isLoading && topLevelPages.length === 0 && (
             <div className="text-center py-16 bg-gray-50 rounded-lg">
               <div className="text-6xl mb-4">📚</div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
