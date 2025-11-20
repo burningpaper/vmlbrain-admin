@@ -325,115 +325,135 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* Categories - Flow Layout */}
+          {/* Categories - Unified Flow Layout */}
           {!isLoading && categories.length > 0 && (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {categories.map((category) => (
-                <div key={category.name} className="contents">
-                  {/* Section Header - Full Width */}
-                  <div
-                    id={`section-${category.key}`}
-                    className="col-span-full scroll-mt-24 flex items-center justify-between mb-2 mt-6 first:mt-0"
+            <div className="space-y-8">
+              {/* Section Navigation - Compact Header Style */}
+              <div className="flex flex-wrap gap-4 pb-4 border-b border-gray-200">
+                {categories.map((category) => (
+                  <button
+                    key={category.key}
+                    onClick={() => {
+                      const element = document.getElementById(`section-${category.key}`);
+                      element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-vml-blue transition-smooth"
                   >
-                    <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                      {iconMap[category.icon]}
-                      {category.name}
-                    </h2>
-                    <span className="text-sm text-gray-500 font-medium">
-                      {category.pages.length} {category.pages.length === 1 ? 'item' : 'items'}
+                    {iconMap[category.icon]}
+                    <span>{category.name}</span>
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                      {category.pages.length}
                     </span>
-                  </div>
+                  </button>
+                ))}
+              </div>
 
-                  {/* Category Pages - Flow in Grid */}
-                  {category.pages.map((page) => {
-                    const children = getChildren(page.slug);
-                    const isExpanded = expandedCategories.has(page.slug);
+              {/* All Tiles in One Grid */}
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {categories.map((category) => (
+                  <div key={category.name} className="contents">
+                    {category.pages.map((page, index) => {
+                      const children = getChildren(page.slug);
+                      const isExpanded = expandedCategories.has(page.slug);
+                      const isFirstInCategory = index === 0;
 
-                    return (
-                      <div
-                        key={page.slug}
-                        className="bg-white rounded-lg border border-gray-200 border-l-4 border-l-gray-200 hover:border-l-vml-blue shadow-sm card-hover overflow-hidden"
-                      >
-                        <div className="p-6">
-                          <Link href={`/p/${page.slug}`}>
-                            <h3 className="text-lg font-semibold text-gray-900 hover:text-vml-blue mb-2 transition-smooth">
-                              {page.title}
-                            </h3>
-                          </Link>
+                      return (
+                        <div
+                          key={page.slug}
+                          id={isFirstInCategory ? `section-${category.key}` : undefined}
+                          className="bg-white rounded-lg border border-gray-200 border-l-4 border-l-gray-200 hover:border-l-vml-blue shadow-sm card-hover overflow-hidden scroll-mt-24"
+                        >
+                          <div className="p-6">
+                            {/* Category Badge at top of first card */}
+                            {isFirstInCategory && (
+                              <div className="flex items-center gap-2 mb-3 pb-3 border-b border-gray-100">
+                                {iconMap[category.icon]}
+                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                  {category.name}
+                                </span>
+                              </div>
+                            )}
 
-                          {page.summary && (
-                            <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                              {page.summary}
-                            </p>
-                          )}
+                            <Link href={`/p/${page.slug}`}>
+                              <h3 className="text-lg font-semibold text-gray-900 hover:text-vml-blue mb-2 transition-smooth">
+                                {page.title}
+                              </h3>
+                            </Link>
 
-                          {children.length > 0 && (
-                            <div className="border-t border-gray-100 pt-4 mt-4">
-                              <button
-                                onClick={() => toggleCategory(page.slug)}
-                                className="flex items-center justify-between w-full text-xs font-medium text-gray-500 uppercase hover:text-vml-blue transition-smooth"
-                              >
-                                <span>Expand ({children.length})</span>
-                                <svg
-                                  className={`w-4 h-4 transition-transform ${
-                                    isExpanded ? 'rotate-180' : ''
-                                  }`}
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
+                            {page.summary && (
+                              <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                                {page.summary}
+                              </p>
+                            )}
+
+                            {children.length > 0 && (
+                              <div className="border-t border-gray-100 pt-4 mt-4">
+                                <button
+                                  onClick={() => toggleCategory(page.slug)}
+                                  className="flex items-center justify-between w-full text-xs font-medium text-gray-500 uppercase hover:text-vml-blue transition-smooth"
                                 >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M19 9l-7 7-7-7"
-                                  />
-                                </svg>
-                              </button>
+                                  <span>Expand ({children.length})</span>
+                                  <svg
+                                    className={`w-4 h-4 transition-transform ${
+                                      isExpanded ? 'rotate-180' : ''
+                                    }`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M19 9l-7 7-7-7"
+                                    />
+                                  </svg>
+                                </button>
 
-                              {isExpanded && (
-                                <ul className="space-y-1 animate-fade-in mt-2">
-                                  {children.map((child) => (
-                                    <li key={child.slug}>
-                                      <Link
-                                        href={`/p/${page.slug}/${child.slug}`}
-                                        className="text-sm text-vml-blue hover:text-vml-pink hover:underline flex items-center gap-1"
-                                      >
-                                        <span>→</span>
-                                        <span>{child.title}</span>
-                                      </Link>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          )}
+                                {isExpanded && (
+                                  <ul className="space-y-1 animate-fade-in mt-2">
+                                    {children.map((child) => (
+                                      <li key={child.slug}>
+                                        <Link
+                                          href={`/p/${page.slug}/${child.slug}`}
+                                          className="text-sm text-vml-blue hover:text-vml-pink hover:underline flex items-center gap-1"
+                                        >
+                                          <span>→</span>
+                                          <span>{child.title}</span>
+                                        </Link>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            )}
 
-                          <Link
-                            href={`/p/${page.slug}`}
-                            className="inline-flex items-center gap-1 mt-4 text-sm font-medium text-vml-blue hover:text-vml-pink transition-smooth"
-                          >
-                            <span>View page</span>
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                            <Link
+                              href={`/p/${page.slug}`}
+                              className="inline-flex items-center gap-1 mt-4 text-sm font-medium text-vml-blue hover:text-vml-pink transition-smooth"
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 5l7 7-7 7"
-                              />
-                            </svg>
-                          </Link>
+                              <span>View page</span>
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 5l7 7-7 7"
+                                />
+                              </svg>
+                            </Link>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
