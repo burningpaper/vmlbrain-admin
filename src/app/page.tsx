@@ -327,27 +327,7 @@ export default function HomePage() {
 
           {/* Categories - Unified Flow Layout */}
           {!isLoading && categories.length > 0 && (
-            <div className="space-y-8">
-              {/* Section Navigation - Compact Header Style */}
-              <div className="flex flex-wrap gap-4 pb-4 border-b border-gray-200">
-                {categories.map((category) => (
-                  <button
-                    key={category.key}
-                    onClick={() => {
-                      const element = document.getElementById(`section-${category.key}`);
-                      element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }}
-                    className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-vml-blue transition-smooth"
-                  >
-                    {iconMap[category.icon]}
-                    <span>{category.name}</span>
-                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                      {category.pages.length}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
+            <div>
               {/* All Tiles in One Grid */}
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {categories.map((category) => (

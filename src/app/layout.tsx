@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   title: "Knowledge Base",
   description: "VML Knowledge Base - Your company intranet & documentation",
   icons: {
-    icon: '/WHITE%20Icon%20Snowflake.png',
+    icon: '/BLACK%20Icon%20Snowflake.png',
   },
 };
 
