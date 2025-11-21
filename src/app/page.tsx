@@ -13,6 +13,8 @@ type Page = {
   summary: string | null;
   parent_slug: string | null;
   section_key: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 type SectionRow = {
@@ -40,32 +42,47 @@ type Category = {
   pages: Page[];
 };
 
+const POLICY_SELECT = 'slug, title, summary, parent_slug, section_key, created_at, updated_at';
+const POLICY_SELECT_FALLBACK = 'slug, title, summary, parent_slug, section_key';
+
 export default function HomePage() {
   const router = useRouter();
   const [topLevelPages, setTopLevelPages] = useState<Page[]>([]);
   const [allPages, setAllPages] = useState<Page[]>([]);
   const [sections, setSections] = useState<SectionRow[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
+  const [latestAdded, setLatestAdded] = useState<Page[]>([]);
+  const [latestUpdated, setLatestUpdated] = useState<Page[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true);
+      const fetchPolicies = async (builder: (cols: string) => Promise<{ data: unknown; error: unknown }>) => {
+        const primary = await builder(POLICY_SELECT);
+        // @ts-ignore
+        if (!(primary as { error?: unknown }).error) return (primary as { data: Page[] }).data || [];
+        const fallback = await builder(POLICY_SELECT_FALLBACK);
+        return (fallback as { data: Page[] }).data || [];
+      };
+
       // Get all top-level pages (no parent)
-      const { data: topData } = await supa
-        .from('policies')
-        .select('slug, title, summary, parent_slug, section_key')
-        .or('parent_slug.is.null,parent_slug.eq.')
-        .eq('status', 'approved')
-        .order('title');
+      const topData = await fetchPolicies((cols) =>
+        supa
+          .from('policies')
+          .select(cols)
+          .or('parent_slug.is.null,parent_slug.eq.')
+          .order('title')
+      );
 
       // Get all pages for children lookup
-      const { data: allData } = await supa
-        .from('policies')
-        .select('slug, title, summary, parent_slug, section_key')
-        .eq('status', 'approved')
-        .order('title');
+      const allData = await fetchPolicies((cols) =>
+        supa
+          .from('policies')
+          .select(cols)
+          .order('title')
+      );
 
       // Get sections for homepage grouping
       const { data: sectionsData, error: sectionsError } = await supa
@@ -89,7 +106,6 @@ export default function HomePage() {
       const { data: peopleData } = await supa
         .from('profiles')
         .select('slug, first_name, last_name, job_title, photo_url')
-        .eq('status', 'approved')
         .order('last_name')
         .limit(6);
 
@@ -97,6 +113,8 @@ export default function HomePage() {
       setAllPages((allData as Page[]) || []);
       setPeople((peopleData as Person[]) || []);
       setSections(resolvedSections);
+      setLatestAdded(await fetchLatest('created_at', 'updated_at'));
+      setLatestUpdated(await fetchLatest('updated_at', 'created_at'));
       setIsLoading(false);
     }
 
@@ -127,27 +145,13 @@ export default function HomePage() {
     return allPages.filter((p) => p.parent_slug === parentSlug);
   };
 
-  // Index children for recursive counts
-  const childMap = useMemo(() => {
-    const map = new Map<string, Page[]>();
-    allPages.forEach((page) => {
-      if (!page.parent_slug) return;
-      const existing = map.get(page.parent_slug) || [];
-      existing.push(page);
-      map.set(page.parent_slug, existing);
-    });
-    return map;
-  }, [allPages]);
-
-  const countDescendants = (slug: string): number => {
-    const children = childMap.get(slug) || [];
-    return children.reduce((sum, child) => sum + 1 + countDescendants(child.slug), 0);
+  // All pages in a section (any depth)
+  const getSectionPages = (sectionKey: string) => {
+    return allPages.filter((p) => (p.section_key || '') === sectionKey);
   };
 
   const totalArticlesInSection = (sectionKey: string): number => {
-    return topLevelPages
-      .filter((p) => p.section_key === sectionKey)
-      .reduce((sum, page) => sum + 1 + countDescendants(page.slug), 0);
+    return getSectionPages(sectionKey).length;
   };
 
   const pageMap = useMemo(() => {
@@ -218,6 +222,53 @@ export default function HomePage() {
     if (imageName) return `/${imageName}`;
     if (fallback) return fallback;
     return null;
+  };
+
+  // Fetch latest articles by timestamp field (created_at or updated_at)
+  const fetchLatest = async (
+    primaryField: 'created_at' | 'updated_at',
+    secondaryField: 'created_at' | 'updated_at' | null
+  ) => {
+    // Try with primary field first
+    const { data, error } = await supa
+      .from('policies')
+      .select(POLICY_SELECT)
+      .or('status.eq.approved,status.eq.Approved,status.is.null,status.eq.')
+      .not(primaryField, 'is', null)
+      .order(primaryField, { ascending: false })
+      .limit(10);
+
+    if (!error && data && data.length > 0) {
+      return data as Page[];
+    }
+
+    // Fallback: try without the null filter in case column exists but has nulls
+    const { data: fallbackData, error: fallbackError } = await supa
+      .from('policies')
+      .select(POLICY_SELECT)
+      .or('status.eq.approved,status.eq.Approved,status.is.null,status.eq.')
+      .order(primaryField, { ascending: false })
+      .limit(10);
+
+    if (!fallbackError && fallbackData && fallbackData.length > 0) {
+      return fallbackData as Page[];
+    }
+
+    // Try fallback select (without timestamp columns) and use secondary field
+    if (secondaryField) {
+      const { data: secondaryData, error: secondaryError } = await supa
+        .from('policies')
+        .select(POLICY_SELECT_FALLBACK)
+        .or('status.eq.approved,status.eq.Approved,status.is.null,status.eq.')
+        .order(secondaryField, { ascending: false })
+        .limit(10);
+
+      if (!secondaryError && secondaryData && secondaryData.length > 0) {
+        return secondaryData as Page[];
+      }
+    }
+
+    return [];
   };
 
   return (
@@ -342,17 +393,17 @@ export default function HomePage() {
                   </p>
                     {totalArticlesInSection(category.key) > 0 && (
                     <div className="space-y-2">
-                      {category.pages.slice(0, 3).map((page) => (
+                      {getSectionPages(category.key).slice(0, 3).map((page) => (
                         <Link
                           key={page.slug}
-                          href={`/p/${page.slug}`}
+                          href={buildPathFromSlug(page.slug) || `/p/${page.slug}`}
                           className="block text-sm text-[#667eea] hover:text-[#764ba2] transition-colors"
                         >
                           {page.title}
                         </Link>
                       ))}
-                      {totalArticlesInSection(category.key) > category.pages.slice(0, 3).length && (
-                        <span className="feature-tag mt-2">+{totalArticlesInSection(category.key) - category.pages.slice(0, 3).length} more</span>
+                      {totalArticlesInSection(category.key) > getSectionPages(category.key).slice(0, 3).length && (
+                        <span className="feature-tag mt-2">+{totalArticlesInSection(category.key) - getSectionPages(category.key).slice(0, 3).length} more</span>
                       )}
                     </div>
                   )}
@@ -364,7 +415,7 @@ export default function HomePage() {
         )}
 
         {/* Empty State */}
-        {!isLoading && topLevelPages.length === 0 && (
+        {!isLoading && categories.length === 0 && topLevelPages.length === 0 && latestAdded.length === 0 && latestUpdated.length === 0 && (
           <div className="text-center py-16 bg-gray-50 rounded-xl">
             <div className="text-6xl mb-4">📚</div>
             <h3 className="text-xl font-semibold text-[#1a1a1a] mb-2">
@@ -384,103 +435,68 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* All Content Section */}
-      {!isLoading && categories.length > 0 && (
+      {/* Latest activity */}
+      {!isLoading && (
         <section className="max-w-[1400px] mx-auto px-8 py-24">
           <div className="section-header">
-            <h2>Browse All Content</h2>
-            <p>Explore our complete library of policies, guides, and documentation</p>
+            <h2>Latest Updates</h2>
+            <p>New and recently changed articles</p>
           </div>
-
-          <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-3">
-            {categories.map((category) => {
-              const headingImage = getSectionImageSrc(category.imageName, categoryImages[category.name]);
-              return (
-                <div
-                  key={category.key}
-                  className="news-card"
-                  role={getSectionLandingPath(category.key) ? 'button' : undefined}
-                  tabIndex={getSectionLandingPath(category.key) ? 0 : -1}
-                  onClick={handleSectionClick(category.key)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleSectionClick(category.key)(e as unknown as React.MouseEvent);
-                    }
-                  }}
-                >
-                  <div className="p-8">
-                    <div className="flex items-center gap-3 mb-4">
-                      {headingImage ? (
-                        <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-gray-100 shadow-sm">
-                          <Image
-                            src={headingImage}
-                            alt={`${category.name} section`}
-                            fill
-                            className="object-cover"
-                            sizes="40px"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#eef0ff] text-[#667eea]">
-                          {iconMap[category.icon]}
-                        </div>
-                      )}
-                      <h3 className="text-xl font-semibold text-[#1a1a1a]">{category.name}</h3>
-                    </div>
-
-                    {totalArticlesInSection(category.key) > 0 ? (
-                      <ul className="space-y-3">
-                        {category.pages.map((page) => {
-                          const children = getChildren(page.slug);
-                          const isExpanded = expandedCategories.has(page.slug);
-
-                          return (
-                            <li key={page.slug}>
-                              <div className="flex items-center justify-between">
-                                <Link
-                                  href={`/p/${page.slug}`}
-                                  className="text-[#1a1a1a] hover:text-[#667eea] font-medium transition-colors"
-                                >
-                                  {page.title}
-                                </Link>
-                                {children.length > 0 && (
-                                  <button
-                                    onClick={() => toggleCategory(page.slug)}
-                                    className="text-[#667eea] text-sm hover:underline"
-                                  >
-                                    {isExpanded ? 'Hide' : `+${children.length}`}
-                                  </button>
-                                )}
-                              </div>
-                              {page.summary && (
-                                <p className="text-sm text-[#666] mt-1 line-clamp-2">{page.summary}</p>
-                              )}
-                              {isExpanded && children.length > 0 && (
-                                <ul className="mt-2 ml-4 space-y-1 animate-fade-in">
-                                  {children.map((child) => (
-                                    <li key={child.slug}>
-                                      <Link
-                                        href={`/p/${page.slug}/${child.slug}`}
-                                        className="text-sm text-[#667eea] hover:text-[#764ba2]"
-                                      >
-                                        → {child.title}
-                                      </Link>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    ) : (
-                      <p className="text-[#999] italic">No articles in this section yet</p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="grid gap-8 md:grid-cols-2">
+            <div className="news-card">
+              <div className="p-8">
+                <h3 className="text-xl font-semibold text-[#1a1a1a] mb-4">Latest Added</h3>
+                {latestAdded.length > 0 ? (
+                  <ul className="space-y-3">
+                    {latestAdded.map((page) => {
+                      const path = buildPathFromSlug(page.slug) || `/p/${page.slug}`;
+                      return (
+                        <li key={page.slug}>
+                          <Link
+                            href={path}
+                            className="text-[#1a1a1a] hover:text-[#667eea] font-medium transition-colors"
+                          >
+                            {page.title}
+                          </Link>
+                          {page.summary && (
+                            <p className="text-sm text-[#666] mt-1 line-clamp-2">{page.summary}</p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-[#999] italic">No recent additions</p>
+                )}
+              </div>
+            </div>
+            <div className="news-card">
+              <div className="p-8">
+                <h3 className="text-xl font-semibold text-[#1a1a1a] mb-4">Latest Updated</h3>
+                {latestUpdated.length > 0 ? (
+                  <ul className="space-y-3">
+                    {latestUpdated.map((page) => {
+                      const path = buildPathFromSlug(page.slug) || `/p/${page.slug}`;
+                      return (
+                        <li key={page.slug}>
+                          <Link
+                            href={path}
+                            className="text-[#1a1a1a] hover:text-[#667eea] font-medium transition-colors"
+                          >
+                            {page.title}
+                          </Link>
+                          {page.summary && (
+                            <p className="text-sm text-[#666] mt-1 line-clamp-2">{page.summary}</p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-[#999] italic">No recent updates</p>
+                )}
+              </div>
+            </div>
           </div>
         </section>
       )}
