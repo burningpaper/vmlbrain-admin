@@ -539,49 +539,8 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Footer */}
-      <footer className="bg-[#1a1a1a] text-white pt-16 pb-8 px-8">
-        <div className="max-w-[1400px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
-          <div>
-            <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
-            <ul className="space-y-3 list-none">
-              <li><Link href="/" className="text-[#ccc] hover:text-white transition-colors">Home</Link></li>
-              <li><Link href="/people" className="text-[#ccc] hover:text-white transition-colors">People Directory</Link></li>
-              <li><Link href="/files" className="text-[#ccc] hover:text-white transition-colors">Resources</Link></li>
-              <li><Link href="/admin" className="text-[#ccc] hover:text-white transition-colors">Admin</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-lg font-semibold mb-4">Resources</h4>
-            <ul className="space-y-3 list-none">
-              <li><span className="text-[#ccc]">Brand Guidelines</span></li>
-              <li><span className="text-[#ccc]">Templates</span></li>
-              <li><span className="text-[#ccc]">Learning Hub</span></li>
-              <li><span className="text-[#ccc]">IT Support</span></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-lg font-semibold mb-4">Company</h4>
-            <ul className="space-y-3 list-none">
-              <li><span className="text-[#ccc]">About VML</span></li>
-              <li><span className="text-[#ccc]">Leadership</span></li>
-              <li><span className="text-[#ccc]">Careers</span></li>
-              <li><span className="text-[#ccc]">Contact</span></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-lg font-semibold mb-4">Connect</h4>
-            <ul className="space-y-3 list-none">
-              <li><span className="text-[#ccc]">Email</span></li>
-              <li><span className="text-[#ccc]">Slack</span></li>
-              <li><span className="text-[#ccc]">Help Center</span></li>
-            </ul>
-          </div>
-        </div>
-        <div className="max-w-[1400px] mx-auto pt-8 border-t border-[#333] text-center text-[#999]">
-          <p>© {new Date().getFullYear()} VML. All rights reserved. Building extraordinary experiences together.</p>
-        </div>
-      </footer>
+      {/* Footer intentionally left blank */}
+      <footer className="bg-[#1a1a1a] text-white pt-8 pb-8 px-8" />
     </div>
   );
 }
