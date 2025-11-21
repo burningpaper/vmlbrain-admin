@@ -1,7 +1,6 @@
 import { supa } from '@/lib/supabase';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import SidebarNav from '@/components/SidebarNav';
 import BoxExplorer from '@/components/BoxExplorer';
 import { renderEmbeds } from '@/lib/renderEmbeds';
@@ -92,68 +91,64 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header with VML Gradient */}
-      <header className="vml-gradient-header text-white shadow-lg sticky top-0 z-50">
-        <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-3 hover:opacity-90 transition-smooth">
-              <Image
-                src="/WHITE%20Icon%20Snowflake.png"
-                alt="VML"
-                width={40}
-                height={40}
-                className="object-contain"
-              />
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold">Knowledge Base</h1>
-                <p className="text-xs sm:text-sm text-white text-opacity-90 hidden sm:block">
-                  Your company intranet & documentation
-                </p>
-              </div>
-            </Link>
-            <nav className="flex items-center gap-4">
-              <Link
-                href="/people"
-                className="text-sm font-medium hover:bg-white hover:bg-opacity-20 px-3 py-2 rounded-md transition-smooth"
-              >
-                People
-              </Link>
-              <Link
-                href="/admin"
-                className="text-sm font-medium hover:bg-white hover:bg-opacity-20 px-3 py-2 rounded-md transition-smooth"
-              >
-                Admin
-              </Link>
-            </nav>
-          </div>
-        </div>
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <nav className="max-w-[1400px] mx-auto px-8 py-6 flex justify-between items-center">
+          <Link href="/" className="flex items-center gap-3">
+            <svg className="h-8" viewBox="0 0 1860 612" xmlns="http://www.w3.org/2000/svg">
+              <path d="m1404.7,133.12l63.12,345.76h-100.16l-25.07-198.92-54.78,198.92h-89.89l-54.78-198.92-25.07,198.92h-100.15l63.12-345.76h105.96l55.88,203.16,55.88-203.16h105.96Zm-476.91,0l-81.54,233.33-81.54-233.33h-103.74l130.59,345.76h109.39l130.59-345.76h-103.74Zm685.34,257.25V133.12h-95.82v345.76h237.67l33.43-88.52h-175.27Zm-1051.13,123.31v48.33h-48.33l-207.67-207.67-207.67,207.67h-48.33v-48.33s207.67-207.67,207.67-207.67L50,98.33v-48.33s48.33,0,48.33,0l207.67,207.67,207.67-207.67h48.33v48.33l-207.67,207.67s207.67,207.67,207.67,207.67ZM356.77,50l-50.77,50.77-50.77-50.77h-87.33l138.09,138.09L444.09,50h-87.33Zm87.33,512l-138.09-138.09-138.09,138.09h87.33l50.77-50.77,50.77,50.77h87.33Zm117.91-205.23l-50.77-50.77,50.77-50.77v-87.33l-138.09,138.09,138.09,138.09v-87.33ZM50,444.09l138.09-138.09L50,167.91v87.33l50.77,50.77-50.77,50.77v87.33Z" fill="#1a1a1a"/>
+            </svg>
+          </Link>
+          <ul className="hidden md:flex gap-10 list-none">
+            <li><Link href="/" className="text-[#4a4a4a] no-underline font-medium text-[0.95rem] hover:text-black transition-colors">Home</Link></li>
+            <li><Link href="/people" className="text-[#4a4a4a] no-underline font-medium text-[0.95rem] hover:text-black transition-colors">People</Link></li>
+            <li><Link href="/files" className="text-[#4a4a4a] no-underline font-medium text-[0.95rem] hover:text-black transition-colors">Resources</Link></li>
+            <li><Link href="/admin" className="text-[#4a4a4a] no-underline font-medium text-[0.95rem] hover:text-black transition-colors">Admin</Link></li>
+          </ul>
+        </nav>
       </header>
 
+      {/* Content hero strip */}
+      <section className="relative vml-gradient-header h-[240px] flex items-center overflow-hidden">
+        <div className="absolute inset-0 opacity-35" style={{
+          backgroundImage: `url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse"><path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>')`
+        }}></div>
+        <div className="relative max-w-[1200px] mx-auto w-full px-8 text-white">
+          <p className="text-sm uppercase tracking-[0.15em] font-semibold opacity-90 mb-2">Knowledge Base</p>
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-3">{policy.title}</h1>
+          {policy.summary && (
+            <p className="text-lg md:text-xl font-light max-w-3xl opacity-90 leading-relaxed">
+              {policy.summary}
+            </p>
+          )}
+        </div>
+      </section>
+
       {/* Main layout with sidebar */}
-      <div className="max-w-screen-2xl mx-auto">
+      <div className="max-w-[1400px] mx-auto">
         <div className="flex">
           {/* Main content */}
-          <main className="flex-1 px-4 sm:px-6 lg:px-12 py-8 lg:py-12 max-w-4xl">
+          <main className="flex-1 px-8 py-12 max-w-4xl">
             {/* Breadcrumb */}
-            <nav className="mb-6">
-              <ol className="flex items-center flex-wrap gap-2 text-sm text-gray-500">
+            <nav className="mb-8">
+              <ol className="flex items-center flex-wrap gap-2 text-sm text-[#999]">
                 <li>
-                  <Link href="/" className="hover:text-vml-blue transition-smooth flex items-center gap-1">
+                  <Link href="/" className="hover:text-[#667eea] transition-colors flex items-center gap-1">
                     <span>Home</span>
                   </Link>
                 </li>
                 {breadcrumb.map((item, index) => (
                   <li key={item.slug} className="flex items-center gap-2">
-                    <span className="text-gray-400">/</span>
+                    <span className="text-[#ccc]">/</span>
                     {index < breadcrumb.length - 1 ? (
-                      <Link 
+                      <Link
                         href={buildPath(breadcrumb, index)}
-                        className="hover:text-vml-blue transition-smooth"
+                        className="hover:text-[#667eea] transition-colors"
                       >
                         {item.title}
                       </Link>
                     ) : (
-                      <span className="text-gray-900 font-medium">{item.title}</span>
+                      <span className="text-[#1a1a1a] font-medium">{item.title}</span>
                     )}
                   </li>
                 ))}
@@ -162,26 +157,27 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
 
             {/* Article content */}
             <article className="prose prose-lg max-w-none">
-              <h1 className="text-4xl font-bold text-gray-900 mb-4">{policy.title}</h1>
+              <h1 className="text-4xl font-bold text-[#1a1a1a] mb-4 tracking-tight">{policy.title}</h1>
               {policy.summary && (
-                <p className="text-xl text-gray-600 mb-8">{policy.summary}</p>
+                <p className="text-xl text-[#666] mb-8 leading-relaxed">{policy.summary}</p>
               )}
               <div
-                className="prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-vml-blue hover:prose-a:text-vml-pink prose-table:border-collapse prose-table:border prose-table:border-gray-300 prose-th:border prose-th:border-gray-300 prose-th:bg-gray-100 prose-th:p-3 prose-th:text-left prose-td:border prose-td:border-gray-300 prose-td:p-3"
+                className="prose-headings:text-[#1a1a1a] prose-headings:font-semibold prose-p:text-[#4a4a4a] prose-a:text-[#667eea] hover:prose-a:text-[#764ba2] prose-table:border-collapse prose-table:border prose-table:border-gray-300 prose-th:border prose-th:border-gray-300 prose-th:bg-gray-100 prose-th:p-3 prose-th:text-left prose-td:border prose-td:border-gray-300 prose-td:p-3"
                 dangerouslySetInnerHTML={{ __html: renderEmbeds(policy.body_md) }}
               />
 
               {/* Auto Table of Contents for sections (only if this page has sub-pages) */}
               {Array.isArray(children) && children.length > 0 && (
-                <section className="mt-10">
-                  <h2 className="text-2xl font-semibold text-gray-900 mb-4">In this section</h2>
-                  <ul className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
+                <section className="mt-12">
+                  <h2 className="text-2xl font-semibold text-[#1a1a1a] mb-4">In this section</h2>
+                  <ul className="divide-y divide-gray-200 rounded-xl border border-gray-200 bg-white overflow-hidden">
                     {children.map((c) => {
                       const path = '/p/' + [...breadcrumb.map(b => b.slug), c.slug].join('/');
                       return (
-                        <li key={c.slug} className="p-3 hover:bg-gray-50 transition-smooth">
-                          <Link href={path} className="text-vml-blue hover:text-vml-pink font-medium">
-                            {c.title}
+                        <li key={c.slug} className="p-4 hover:bg-gray-50 transition-colors">
+                          <Link href={path} className="text-[#667eea] hover:text-[#764ba2] font-medium flex items-center gap-2">
+                            <span>→</span>
+                            <span>{c.title}</span>
                           </Link>
                         </li>
                       );
@@ -209,16 +205,46 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
       </div>
 
       {/* Footer */}
-      <footer className="border-t bg-gray-50 mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-gray-600">
-              © {new Date().getFullYear()} VML. All rights reserved.
-            </p>
-            <p className="text-sm text-gray-600">
-              Need help? Contact the People Team
-            </p>
+      <footer className="bg-[#1a1a1a] text-white pt-16 pb-8 px-8 mt-16">
+        <div className="max-w-[1400px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+          <div>
+            <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
+            <ul className="space-y-3 list-none">
+              <li><Link href="/" className="text-[#ccc] hover:text-white transition-colors">Home</Link></li>
+              <li><Link href="/people" className="text-[#ccc] hover:text-white transition-colors">People Directory</Link></li>
+              <li><Link href="/files" className="text-[#ccc] hover:text-white transition-colors">Resources</Link></li>
+              <li><Link href="/admin" className="text-[#ccc] hover:text-white transition-colors">Admin</Link></li>
+            </ul>
           </div>
+          <div>
+            <h4 className="text-lg font-semibold mb-4">Resources</h4>
+            <ul className="space-y-3 list-none">
+              <li><span className="text-[#ccc]">Brand Guidelines</span></li>
+              <li><span className="text-[#ccc]">Templates</span></li>
+              <li><span className="text-[#ccc]">Learning Hub</span></li>
+              <li><span className="text-[#ccc]">IT Support</span></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold mb-4">Company</h4>
+            <ul className="space-y-3 list-none">
+              <li><span className="text-[#ccc]">About VML</span></li>
+              <li><span className="text-[#ccc]">Leadership</span></li>
+              <li><span className="text-[#ccc]">Careers</span></li>
+              <li><span className="text-[#ccc]">Contact</span></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold mb-4">Connect</h4>
+            <ul className="space-y-3 list-none">
+              <li><span className="text-[#ccc]">Email</span></li>
+              <li><span className="text-[#ccc]">Slack</span></li>
+              <li><span className="text-[#ccc]">Help Center</span></li>
+            </ul>
+          </div>
+        </div>
+        <div className="max-w-[1400px] mx-auto pt-8 border-t border-[#333] text-center text-[#999]">
+          <p>© {new Date().getFullYear()} VML. All rights reserved. Building extraordinary experiences together.</p>
         </div>
       </footer>
     </div>

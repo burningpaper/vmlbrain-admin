@@ -38,11 +38,11 @@ export default function SidebarNav({ items, sections }: SidebarNavProps) {
   // Categorization based on DB sections (no heuristics)
   const categorizePages = (pages: NavItem[], secs: SectionRow[]): Category[] => {
     const iconMap: Record<string, React.ReactNode> = {
-      building: <RiBuilding2Line className="text-vml-blue" size={18} />,
-      users: <RiTeamLine className="text-vml-blue" size={18} />,
-      handshake: <RiHandHeartLine className="text-vml-blue" size={18} />,
-      clipboard: <RiClipboardLine className="text-vml-blue" size={18} />,
-      book: <RiBookOpenLine className="text-vml-blue" size={18} />,
+      building: <RiBuilding2Line className="text-[#667eea]" size={18} />,
+      users: <RiTeamLine className="text-[#667eea]" size={18} />,
+      handshake: <RiHandHeartLine className="text-[#667eea]" size={18} />,
+      clipboard: <RiClipboardLine className="text-[#667eea]" size={18} />,
+      book: <RiBookOpenLine className="text-[#667eea]" size={18} />,
     };
 
     const topLevelPages = pages.filter(p => !p.parent_slug || p.parent_slug === '');
@@ -112,7 +112,7 @@ export default function SidebarNav({ items, sections }: SidebarNavProps) {
 
   return (
     <nav className="space-y-1">
-      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mb-3">
+      <div className="text-xs font-semibold text-[#999] uppercase tracking-wider px-3 mb-3">
         Contents
       </div>
 
@@ -123,15 +123,15 @@ export default function SidebarNav({ items, sections }: SidebarNavProps) {
           <div key={category.name} className="mb-4">
             <button
               onClick={() => toggleCategory(category.name)}
-              className="w-full flex items-center justify-between px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-md transition-smooth"
+              className="w-full flex items-center justify-between px-3 py-2 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-100 rounded-lg transition-colors"
             >
               <span className="flex items-center gap-2">
                 {category.icon}
                 <span>{category.name}</span>
               </span>
-              <RiArrowDownSLine 
-                className={`text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
-                size={16} 
+              <RiArrowDownSLine
+                className={`text-[#999] transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                size={16}
               />
             </button>
 
@@ -148,10 +148,10 @@ export default function SidebarNav({ items, sections }: SidebarNavProps) {
                       <div className="flex items-center">
                         <Link
                           href={`/p/${page.slug}`}
-                          className={`block py-1.5 px-3 ml-6 text-sm rounded transition-smooth ${
+                          className={`block py-1.5 px-3 ml-6 text-sm rounded-lg transition-colors ${
                             isActive
-                              ? 'bg-vml-blue bg-opacity-10 text-vml-blue font-medium'
-                              : 'text-gray-700 hover:bg-gray-100'
+                              ? 'bg-[#667eea] bg-opacity-10 text-[#667eea] font-medium'
+                              : 'text-[#4a4a4a] hover:bg-gray-100'
                           }`}
                         >
                           {page.title}
@@ -164,7 +164,7 @@ export default function SidebarNav({ items, sections }: SidebarNavProps) {
                             className="ml-auto mr-2 p-1 rounded hover:bg-gray-100"
                           >
                             <RiArrowDownSLine
-                              className={`text-gray-500 transition-transform ${parentOpen ? 'rotate-180' : ''}`}
+                              className={`text-[#999] transition-transform ${parentOpen ? 'rotate-180' : ''}`}
                               size={16}
                             />
                           </button>
@@ -179,10 +179,10 @@ export default function SidebarNav({ items, sections }: SidebarNavProps) {
                               <Link
                                 key={child.slug}
                                 href={`/p/${page.slug}/${child.slug}`}
-                                className={`block py-1 px-3 ml-6 text-xs rounded transition-smooth flex items-center gap-1 ${
+                                className={`block py-1 px-3 ml-6 text-xs rounded-lg transition-colors flex items-center gap-1 ${
                                   isChildActive
-                                    ? 'bg-vml-blue bg-opacity-10 text-vml-blue font-medium'
-                                    : 'text-gray-600 hover:bg-gray-100'
+                                    ? 'bg-[#667eea] bg-opacity-10 text-[#667eea] font-medium'
+                                    : 'text-[#666] hover:bg-gray-100'
                                 }`}
                               >
                                 <RiArrowRightSLine size={14} />

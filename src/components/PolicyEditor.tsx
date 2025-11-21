@@ -87,8 +87,8 @@ export default function PolicyEditor({
         uploadFile(file, token).then(url => editor?.chain().focus().setImage({ src: url }).run());
         return true;
       },
-      attributes: { 
-        class: 'prose max-w-none p-3 border rounded prose-table:border prose-table:border-collapse prose-th:border prose-th:border-gray-300 prose-th:p-2 prose-th:bg-gray-100 prose-td:border prose-td:border-gray-300 prose-td:p-2' 
+      attributes: {
+        class: 'prose max-w-none p-4 border border-gray-200 rounded-lg focus:outline-none prose-headings:text-[#1a1a1a] prose-p:text-[#4a4a4a] prose-a:text-[#667eea] hover:prose-a:text-[#764ba2] prose-table:border prose-table:border-collapse prose-th:border prose-th:border-gray-300 prose-th:p-2 prose-th:bg-gray-100 prose-td:border prose-td:border-gray-300 prose-td:p-2'
       },
     },
   });
@@ -253,31 +253,31 @@ export default function PolicyEditor({
   // Consider toolbar "enabled" when caret is anywhere in a table
 
   return (
-    <div className="space-y-2 border rounded-lg p-4 bg-white" data-color-mode="light">
-      <div className="flex gap-2 flex-wrap border-b pb-3">
-        <button 
-          type="button" 
-          onClick={() => editor?.chain().focus().toggleBold().run()} 
+    <div className="space-y-2 border border-gray-200 rounded-xl p-4 bg-white" data-color-mode="light">
+      <div className="flex gap-2 flex-wrap border-b border-gray-200 pb-3">
+        <button
+          type="button"
+          onClick={() => editor?.chain().focus().toggleBold().run()}
           disabled={!canToggleBold}
-          className={`px-3 py-1.5 rounded hover:bg-gray-100 font-bold ${editor?.isActive('bold') ? 'bg-gray-200' : 'bg-gray-50'} ${!canToggleBold ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`px-3 py-1.5 rounded-lg hover:bg-gray-100 font-bold text-sm transition-colors ${editor?.isActive('bold') ? 'bg-[#667eea] bg-opacity-10 text-[#667eea]' : 'bg-gray-50 text-[#4a4a4a]'} ${!canToggleBold ? 'opacity-50 cursor-not-allowed' : ''}`}
           title="Bold"
         >
           B
         </button>
-        <button 
-          type="button" 
-          onClick={() => editor?.chain().focus().toggleItalic().run()} 
+        <button
+          type="button"
+          onClick={() => editor?.chain().focus().toggleItalic().run()}
           disabled={!canToggleItalic}
-          className={`px-3 py-1.5 rounded hover:bg-gray-100 italic ${editor?.isActive('italic') ? 'bg-gray-200' : 'bg-gray-50'} ${!canToggleItalic ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`px-3 py-1.5 rounded-lg hover:bg-gray-100 italic text-sm transition-colors ${editor?.isActive('italic') ? 'bg-[#667eea] bg-opacity-10 text-[#667eea]' : 'bg-gray-50 text-[#4a4a4a]'} ${!canToggleItalic ? 'opacity-50 cursor-not-allowed' : ''}`}
           title="Italic"
         >
           I
         </button>
-        <button 
-          type="button" 
-          onClick={() => editor?.chain().focus().toggleStrike().run()} 
+        <button
+          type="button"
+          onClick={() => editor?.chain().focus().toggleStrike().run()}
           disabled={!canToggleStrike}
-          className={`px-3 py-1.5 rounded hover:bg-gray-100 line-through ${editor?.isActive('strike') ? 'bg-gray-200' : 'bg-gray-50'} ${!canToggleStrike ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`px-3 py-1.5 rounded-lg hover:bg-gray-100 line-through text-sm transition-colors ${editor?.isActive('strike') ? 'bg-[#667eea] bg-opacity-10 text-[#667eea]' : 'bg-gray-50 text-[#4a4a4a]'} ${!canToggleStrike ? 'opacity-50 cursor-not-allowed' : ''}`}
           title="Strikethrough"
         >
           S
@@ -285,26 +285,26 @@ export default function PolicyEditor({
         
         <div className="w-px bg-gray-300"></div>
         
-        <button 
-          type="button" 
-          onClick={() => toggleHeadingLevel(1)} 
-          className={`px-3 py-1.5 rounded hover:bg-gray-100 ${editor?.isActive('heading', { level: 1 }) ? 'bg-gray-200' : 'bg-gray-50'}`}
+        <button
+          type="button"
+          onClick={() => toggleHeadingLevel(1)}
+          className={`px-3 py-1.5 rounded-lg hover:bg-gray-100 text-sm transition-colors ${editor?.isActive('heading', { level: 1 }) ? 'bg-[#667eea] bg-opacity-10 text-[#667eea]' : 'bg-gray-50 text-[#4a4a4a]'}`}
           title="Heading 1"
         >
           H1
         </button>
-        <button 
-          type="button" 
-          onClick={() => toggleHeadingLevel(2)} 
-          className={`px-3 py-1.5 rounded hover:bg-gray-100 ${editor?.isActive('heading', { level: 2 }) ? 'bg-gray-200' : 'bg-gray-50'}`}
+        <button
+          type="button"
+          onClick={() => toggleHeadingLevel(2)}
+          className={`px-3 py-1.5 rounded-lg hover:bg-gray-100 text-sm transition-colors ${editor?.isActive('heading', { level: 2 }) ? 'bg-[#667eea] bg-opacity-10 text-[#667eea]' : 'bg-gray-50 text-[#4a4a4a]'}`}
           title="Heading 2"
         >
           H2
         </button>
-        <button 
-          type="button" 
-          onClick={() => toggleHeadingLevel(3)} 
-          className={`px-3 py-1.5 rounded hover:bg-gray-100 ${editor?.isActive('heading', { level: 3 }) ? 'bg-gray-200' : 'bg-gray-50'}`}
+        <button
+          type="button"
+          onClick={() => toggleHeadingLevel(3)}
+          className={`px-3 py-1.5 rounded-lg hover:bg-gray-100 text-sm transition-colors ${editor?.isActive('heading', { level: 3 }) ? 'bg-[#667eea] bg-opacity-10 text-[#667eea]' : 'bg-gray-50 text-[#4a4a4a]'}`}
           title="Heading 3"
         >
           H3
@@ -312,18 +312,18 @@ export default function PolicyEditor({
         
         <div className="w-px bg-gray-300"></div>
         
-        <button 
-          type="button" 
-          onClick={toggleBullet} 
-          className={`px-3 py-1.5 rounded hover:bg-gray-100 ${editor?.isActive('bulletList') ? 'bg-gray-200' : 'bg-gray-50'}`}
+        <button
+          type="button"
+          onClick={toggleBullet}
+          className={`px-3 py-1.5 rounded-lg hover:bg-gray-100 text-sm transition-colors ${editor?.isActive('bulletList') ? 'bg-[#667eea] bg-opacity-10 text-[#667eea]' : 'bg-gray-50 text-[#4a4a4a]'}`}
           title="Bullet List"
         >
           • List
         </button>
-        <button 
-          type="button" 
-          onClick={toggleOrdered} 
-          className={`px-3 py-1.5 rounded hover:bg-gray-100 ${editor?.isActive('orderedList') ? 'bg-gray-200' : 'bg-gray-50'}`}
+        <button
+          type="button"
+          onClick={toggleOrdered}
+          className={`px-3 py-1.5 rounded-lg hover:bg-gray-100 text-sm transition-colors ${editor?.isActive('orderedList') ? 'bg-[#667eea] bg-opacity-10 text-[#667eea]' : 'bg-gray-50 text-[#4a4a4a]'}`}
           title="Numbered List"
         >
           1. List
@@ -331,70 +331,67 @@ export default function PolicyEditor({
         
         <div className="w-px bg-gray-300"></div>
         
-        <button 
-          type="button" 
-          onClick={addLink} 
-          className={`px-3 py-1.5 rounded hover:bg-gray-100 ${editor?.isActive('link') ? 'bg-gray-200' : 'bg-gray-50'}`}
+        <button
+          type="button"
+          onClick={addLink}
+          className={`px-3 py-1.5 rounded-lg hover:bg-gray-100 text-sm transition-colors ${editor?.isActive('link') ? 'bg-[#667eea] bg-opacity-10 text-[#667eea]' : 'bg-gray-50 text-[#4a4a4a]'}`}
           title="Add Link"
         >
-          🔗 Link
+          Link
         </button>
-        <button 
-          type="button" 
+        <button
+          type="button"
           onClick={insertVideo}
-          className="px-3 py-1.5 rounded hover:bg-gray-100 bg-gray-50"
+          className="px-3 py-1.5 rounded-lg hover:bg-gray-100 bg-gray-50 text-[#4a4a4a] text-sm transition-colors"
           title="Insert Video (YouTube/Vimeo/MP4)"
         >
-          🎬 Video
+          Video
         </button>
-        <button 
-          type="button" 
+        <button
+          type="button"
           onClick={insertVideoFromFile}
-          className="px-3 py-1.5 rounded hover:bg-gray-100 bg-gray-50"
+          className="px-3 py-1.5 rounded-lg hover:bg-gray-100 bg-gray-50 text-[#4a4a4a] text-sm transition-colors"
           title="Upload Video (MP4/WEBM/OGG)"
         >
-          ⬆️ Upload Video
+          Upload Video
         </button>
-        <button 
-          type="button" 
-          onClick={insertImageFromFile} 
-          className="px-3 py-1.5 rounded hover:bg-gray-100 bg-gray-50"
+        <button
+          type="button"
+          onClick={insertImageFromFile}
+          className="px-3 py-1.5 rounded-lg hover:bg-gray-100 bg-gray-50 text-[#4a4a4a] text-sm transition-colors"
           title="Upload Image"
         >
-          🖼️ Image
+          Image
         </button>
-        <button 
-          type="button" 
-          onClick={insertTable} 
-          className="px-3 py-1.5 rounded hover:bg-gray-100 bg-gray-50"
+        <button
+          type="button"
+          onClick={insertTable}
+          className="px-3 py-1.5 rounded-lg hover:bg-gray-100 bg-gray-50 text-[#4a4a4a] text-sm transition-colors"
           title="Insert Table"
         >
-          ⊞ Table
+          Table
         </button>
         
         <div className="w-px bg-gray-300"></div>
         
-        <button 
-          type="button" 
-          onClick={() => editor?.chain().focus().undo().run()} 
+        <button
+          type="button"
+          onClick={() => editor?.chain().focus().undo().run()}
           disabled={!editor?.can().undo()}
-          className="px-3 py-1.5 rounded hover:bg-gray-100 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-3 py-1.5 rounded-lg hover:bg-gray-100 bg-gray-50 text-[#4a4a4a] text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="Undo"
         >
-          ↶ Undo
+          Undo
         </button>
-        <button 
-          type="button" 
-          onClick={() => editor?.chain().focus().redo().run()} 
+        <button
+          type="button"
+          onClick={() => editor?.chain().focus().redo().run()}
           disabled={!editor?.can().redo()}
-          className="px-3 py-1.5 rounded hover:bg-gray-100 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-3 py-1.5 rounded-lg hover:bg-gray-100 bg-gray-50 text-[#4a4a4a] text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="Redo"
         >
-          ↷ Redo
+          Redo
         </button>
-
-        <div className="w-px bg-gray-300"></div>
-
 </div>
 
       <BubbleMenu
@@ -405,35 +402,35 @@ export default function PolicyEditor({
           editor.isActive('table') || editor.isActive('tableCell') || editor.isActive('tableHeader')
         }
       >
-        <div className="flex flex-wrap gap-1 bg-white/95 border rounded shadow p-1">
-          <button type="button" onClick={addRowBefore} className="px-2 py-0.5 text-xs rounded border">+ Row ↑</button>
-          <button type="button" onClick={addRowAfter} className="px-2 py-0.5 text-xs rounded border">+ Row ↓</button>
-          <button type="button" onClick={deleteRow} className="px-2 py-0.5 text-xs rounded border">Del Row</button>
+        <div className="flex flex-wrap gap-1 bg-white/95 border border-gray-200 rounded-lg shadow-lg p-2">
+          <button type="button" onClick={addRowBefore} className="px-2 py-1 text-xs rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">+ Row ↑</button>
+          <button type="button" onClick={addRowAfter} className="px-2 py-1 text-xs rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">+ Row ↓</button>
+          <button type="button" onClick={deleteRow} className="px-2 py-1 text-xs rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">Del Row</button>
 
           <div className="w-px bg-gray-300 mx-1" />
 
-          <button type="button" onClick={addColumnBefore} className="px-2 py-0.5 text-xs rounded border">+ Col ←</button>
-          <button type="button" onClick={addColumnAfter} className="px-2 py-0.5 text-xs rounded border">+ Col →</button>
-          <button type="button" onClick={deleteColumn} className="px-2 py-0.5 text-xs rounded border">Del Col</button>
+          <button type="button" onClick={addColumnBefore} className="px-2 py-1 text-xs rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">+ Col ←</button>
+          <button type="button" onClick={addColumnAfter} className="px-2 py-1 text-xs rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">+ Col →</button>
+          <button type="button" onClick={deleteColumn} className="px-2 py-1 text-xs rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">Del Col</button>
 
           <div className="w-px bg-gray-300 mx-1" />
 
-          <button type="button" onClick={toggleHeaderRow} className="px-2 py-0.5 text-xs rounded border">Header</button>
-          <button type="button" onClick={mergeCells} className="px-2 py-0.5 text-xs rounded border">Merge</button>
-          <button type="button" onClick={splitCell} className="px-2 py-0.5 text-xs rounded border">Split</button>
+          <button type="button" onClick={toggleHeaderRow} className="px-2 py-1 text-xs rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">Header</button>
+          <button type="button" onClick={mergeCells} className="px-2 py-1 text-xs rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">Merge</button>
+          <button type="button" onClick={splitCell} className="px-2 py-1 text-xs rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">Split</button>
 
           <div className="w-px bg-gray-300 mx-1" />
 
-          <button type="button" onClick={deleteTable} className="px-2 py-0.5 text-xs rounded border text-red-700">Del Tbl</button>
+          <button type="button" onClick={deleteTable} className="px-2 py-1 text-xs rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors">Del Tbl</button>
         </div>
       </BubbleMenu>
 
       <div className="min-h-[400px]">
         <EditorContent editor={editor} />
       </div>
-      
-      <div className="text-xs text-gray-500 border-t pt-2">
-        💡 Tip: You can paste or drag & drop images directly into the editor
+
+      <div className="text-xs text-[#999] border-t border-gray-200 pt-3">
+        Tip: You can paste or drag & drop images directly into the editor
       </div>
     </div>
   );

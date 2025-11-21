@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supa } from '@/lib/supabase';
+import Link from 'next/link';
 import PolicyEditor from '@/components/PolicyEditor';
 
 interface Policy {
@@ -354,11 +355,11 @@ export default function AdminPage() {
   const TreeNode = ({ node, level = 0 }: { node: PolicyTree; level?: number }) => (
     <li className="list-none">
       <button
-        className="underline hover:text-blue-600 block w-full text-left"
-        style={{ paddingLeft: `${level * 20}px` }}
+        className="text-[#667eea] hover:text-[#764ba2] block w-full text-left text-sm py-1 transition-colors"
+        style={{ paddingLeft: `${level * 16}px` }}
         onClick={() => load(node.slug)}
       >
-        {level > 0 && '└ '}{node.title}
+        {level > 0 && <span className="text-[#ccc] mr-1">└</span>}{node.title}
       </button>
       {node.children && node.children.length > 0 && (
         <ul className="mt-1">
@@ -371,310 +372,335 @@ export default function AdminPage() {
   );
 
   return (
-    <main className="p-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold">Knowledge Editor</h1>
-        <a href="/admin/import" className="text-sm text-blue-600 hover:underline">
-          Import (JSON/XML)
-        </a>
-      </div>
-
-      {/* Token input */}
-      <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <label className="block text-sm font-medium mb-2">
-          Edit Token (Required to save changes)
-        </label>
-        <input
-          type="password"
-          placeholder="Enter your EDIT_TOKEN from .env.local"
-          className="border p-2 w-full max-w-lg rounded"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-        />
-        <p className="text-xs text-gray-600 mt-1">
-          💡 Find this in your <code className="bg-gray-100 px-1 rounded">.env.local</code> file as <code className="bg-gray-100 px-1 rounded">EDIT_TOKEN</code>
-        </p>
-      </div>
-
-      <div className="flex gap-6">
-        {/* Sidebar list with tree view */}
-        <aside className="w-72 border p-2 h-[70vh] overflow-auto">
-          <button
-            className="mb-2 w-full px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium"
-            onClick={() => {
-              setContentType('knowledge');
-              setSlug('');
-              setTitle('');
-              setSummary('');
-              setBodyHtml('<p></p>');
-              setParentSlug('');
-              setBoxFolderId('');
-              setBoxFileIdsText('');
-            }}
-          >
-            + New Article
-          </button>
-          <div className="text-xs text-gray-500 mb-2 mt-3 font-medium">CONTENT TREE</div>
-          <ul className="space-y-1">
-            {tree.map((node) => (
-              <TreeNode key={node.slug} node={node} />
-            ))}
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <nav className="max-w-[1400px] mx-auto px-8 py-6 flex justify-between items-center">
+          <Link href="/" className="flex items-center gap-3">
+            <svg className="h-8" viewBox="0 0 1860 612" xmlns="http://www.w3.org/2000/svg">
+              <path d="m1404.7,133.12l63.12,345.76h-100.16l-25.07-198.92-54.78,198.92h-89.89l-54.78-198.92-25.07,198.92h-100.15l63.12-345.76h105.96l55.88,203.16,55.88-203.16h105.96Zm-476.91,0l-81.54,233.33-81.54-233.33h-103.74l130.59,345.76h109.39l130.59-345.76h-103.74Zm685.34,257.25V133.12h-95.82v345.76h237.67l33.43-88.52h-175.27Zm-1051.13,123.31v48.33h-48.33l-207.67-207.67-207.67,207.67h-48.33v-48.33s207.67-207.67,207.67-207.67L50,98.33v-48.33s48.33,0,48.33,0l207.67,207.67,207.67-207.67h48.33v48.33l-207.67,207.67s207.67,207.67,207.67,207.67ZM356.77,50l-50.77,50.77-50.77-50.77h-87.33l138.09,138.09L444.09,50h-87.33Zm87.33,512l-138.09-138.09-138.09,138.09h87.33l50.77-50.77,50.77,50.77h87.33Zm117.91-205.23l-50.77-50.77,50.77-50.77v-87.33l-138.09,138.09,138.09,138.09v-87.33ZM50,444.09l138.09-138.09L50,167.91v87.33l50.77,50.77-50.77,50.77v87.33Z" fill="#1a1a1a"/>
+            </svg>
+          </Link>
+          <ul className="hidden md:flex gap-10 list-none">
+            <li><Link href="/" className="text-[#4a4a4a] no-underline font-medium text-[0.95rem] hover:text-black transition-colors">Home</Link></li>
+            <li><Link href="/people" className="text-[#4a4a4a] no-underline font-medium text-[0.95rem] hover:text-black transition-colors">People</Link></li>
+            <li><Link href="/files" className="text-[#4a4a4a] no-underline font-medium text-[0.95rem] hover:text-black transition-colors">Resources</Link></li>
+            <li><Link href="/admin" className="text-[#4a4a4a] no-underline font-medium text-[0.95rem] hover:text-black transition-colors">Admin</Link></li>
           </ul>
+        </nav>
+      </header>
 
-          <div className="text-xs text-gray-500 mb-2 mt-4 font-medium">PEOPLE</div>
-          <button
-            className="mb-2 w-full px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 font-medium"
-            onClick={() => {
-              setContentType('profile');
-              setSlug('');
-              setFirstName('');
-              setLastName('');
-              setJobTitle('');
-              setEmail('');
-              setClientsText('');
-              setPhotoUrl('');
-              setProfileDescHtml('<p></p>');
-            }}
-          >
-            + New Profile
-          </button>
-          <ul className="space-y-1">
-            {profiles.map((p) => (
-              <li key={p.slug} className="list-none">
-                <button
-                  className="underline hover:text-blue-600 block w-full text-left"
-                  onClick={() => loadProfile(p.slug)}
-                >
-                  {p.last_name}, {p.first_name} — {p.job_title}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </aside>
+      <main className="max-w-[1400px] mx-auto px-8 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold text-[#1a1a1a]">Knowledge Editor</h1>
+          <a href="/admin/import" className="text-sm text-[#667eea] hover:text-[#764ba2] transition-colors">
+            Import (JSON/XML)
+          </a>
+        </div>
 
-        {/* Editor panel */}
-        <section className="flex-1 space-y-3">
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700">
-              Content Type
-            </label>
-            <select
-              className="w-full border p-2 rounded bg-white"
-              value={contentType}
-              onChange={(e) => setContentType(e.target.value as 'knowledge' | 'profile')}
-            >
-              <option value="knowledge">Knowledge Article</option>
-              <option value="profile">Profile Page</option>
-            </select>
-          </div>
-          <div className={contentType === 'knowledge' ? '' : 'hidden'}>
+        {/* Token input */}
+        <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+          <label className="block text-sm font-semibold mb-2 text-[#1a1a1a]">
+            Edit Token (Required to save changes)
+          </label>
           <input
-            placeholder="slug (kebab-case)"
-            className="w-full border p-2 rounded"
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
+            type="password"
+            placeholder="Enter your EDIT_TOKEN from .env.local"
+            className="border border-gray-300 p-3 w-full max-w-lg rounded-lg focus:outline-none focus:ring-2 focus:ring-[#667eea]"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
           />
-          <input
-            placeholder="Title"
-            className="w-full border p-2 rounded"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-          <input
-            placeholder="Summary"
-            className="w-full border p-2 rounded"
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-          />
-          
-          {/* Parent page selector */}
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700">
-              Parent Page (optional - for nested pages)
-            </label>
-            <select
-              className="w-full border p-2 rounded bg-white"
-              value={parentSlug}
-              onChange={(e) => setParentSlug(e.target.value)}
-            >
-              <option value="">None (Top Level)</option>
-              {list
-                .filter(p => p.slug !== slug) // Don't allow selecting itself as parent
-                .map(p => (
-                  <option key={p.slug} value={p.slug}>
-                    {p.title}
-                  </option>
-                ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Select a parent to nest this page under another page
-            </p>
-          </div>
+          <p className="text-xs text-[#666] mt-2">
+            Find this in your <code className="bg-gray-200 px-1.5 py-0.5 rounded text-[#1a1a1a]">.env.local</code> file as <code className="bg-gray-200 px-1.5 py-0.5 rounded text-[#1a1a1a]">EDIT_TOKEN</code>
+          </p>
+        </div>
 
-          {/* Section selector */}
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700">
-              Section (optional - used on the homepage)
-            </label>
-            <select
-              className="w-full border p-2 rounded bg-white"
-              value={sectionKey}
-              onChange={(e) => setSectionKey(e.target.value)}
+        <div className="flex gap-8">
+          {/* Sidebar list with tree view */}
+          <aside className="w-72 border border-gray-200 rounded-xl p-4 h-[70vh] overflow-auto bg-gray-50">
+            <button
+              className="mb-4 w-full px-4 py-3 text-white rounded-lg font-semibold transition-all hover:shadow-lg"
+              style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
+              onClick={() => {
+                setContentType('knowledge');
+                setSlug('');
+                setTitle('');
+                setSummary('');
+                setBodyHtml('<p></p>');
+                setParentSlug('');
+                setBoxFolderId('');
+                setBoxFileIdsText('');
+              }}
             >
-              <option value="">Unassigned</option>
-              {sections.map((s) => (
-                <option key={s.key} value={s.key}>{s.name}</option>
+              + New Article
+            </button>
+            <div className="text-xs text-[#999] mb-2 mt-3 font-semibold uppercase tracking-wider">Content Tree</div>
+            <ul className="space-y-1">
+              {tree.map((node) => (
+                <TreeNode key={node.slug} node={node} />
               ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Choose a section to group this article on the homepage.
-            </p>
-          </div>
+            </ul>
 
-          {/* Box linking */}
-          <div className="mt-2 p-3 border rounded bg-gray-50">
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="flex flex-col">
-                <label className="text-sm font-medium mb-1 text-gray-700">
-                  Box Folder ID (for Related Files panel)
-                </label>
-                <input
-                  className="w-full border p-2 rounded"
-                  placeholder="e.g. 0 or a specific folder id"
-                  value={boxFolderId}
-                  onChange={(e) => setBoxFolderId(e.target.value)}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Set to a specific Box folder ID to show a read/preview-only file tree on the article page.
-                </p>
-              </div>
+            <div className="text-xs text-[#999] mb-2 mt-6 font-semibold uppercase tracking-wider">People</div>
+            <button
+              className="mb-4 w-full px-4 py-3 text-white rounded-lg font-semibold transition-all hover:shadow-lg"
+              style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}
+              onClick={() => {
+                setContentType('profile');
+                setSlug('');
+                setFirstName('');
+                setLastName('');
+                setJobTitle('');
+                setEmail('');
+                setClientsText('');
+                setPhotoUrl('');
+                setProfileDescHtml('<p></p>');
+              }}
+            >
+              + New Profile
+            </button>
+            <ul className="space-y-1">
+              {profiles.map((p) => (
+                <li key={p.slug} className="list-none">
+                  <button
+                    className="text-[#667eea] hover:text-[#764ba2] block w-full text-left text-sm py-1 transition-colors"
+                    onClick={() => loadProfile(p.slug)}
+                  >
+                    {p.last_name}, {p.first_name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </aside>
 
-              <div className="flex flex-col">
-                <label className="text-sm font-medium mb-1 text-gray-700">
-                  Box File IDs (comma-separated)
-                </label>
-                <input
-                  className="w-full border p-2 rounded"
-                  placeholder="12345, 67890"
-                  value={boxFileIdsText}
-                  onChange={(e) => setBoxFileIdsText(e.target.value)}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Optional: add specific file IDs to link under the tree.
-                </p>
-              </div>
+          {/* Editor panel */}
+          <section className="flex-1 space-y-4">
+            <div>
+              <label className="block text-sm font-semibold mb-2 text-[#1a1a1a]">
+                Content Type
+              </label>
+              <select
+                className="w-full border border-gray-300 p-3 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#667eea]"
+                value={contentType}
+                onChange={(e) => setContentType(e.target.value as 'knowledge' | 'profile')}
+              >
+                <option value="knowledge">Knowledge Article</option>
+                <option value="profile">Profile Page</option>
+              </select>
             </div>
-          </div>
-
-          <PolicyEditor value={bodyHtml} onChange={setBodyHtml} token={token} />
-          <div className="flex gap-2">
-            <button
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium"
-              onClick={save}
-            >
-              Save Article
-            </button>
-            <button
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={del}
-              disabled={!slug}
-              title={!slug ? 'Load an article first' : 'Delete this article'}
-            >
-              Delete
-            </button>
-          </div>
-
-          </div>
-
-          {/* Profile form */}
-          <div className={contentType === 'profile' ? '' : 'hidden'}>
+            <div className={contentType === 'knowledge' ? '' : 'hidden'}>
             <input
               placeholder="slug (kebab-case)"
-              className="w-full border p-2 rounded"
+              className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#667eea]"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
             />
-            <div className="grid gap-3 md:grid-cols-2">
-              <input
-                placeholder="First Name"
-                className="w-full border p-2 rounded"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-              />
-              <input
-                placeholder="Last Name"
-                className="w-full border p-2 rounded"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-              />
-              <input
-                placeholder="Job Title"
-                className="w-full border p-2 rounded"
-                value={jobTitle}
-                onChange={(e) => setJobTitle(e.target.value)}
-              />
-              <input
-                placeholder="Email Address"
-                className="w-full border p-2 rounded"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
+            <input
+              placeholder="Title"
+              className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#667eea] mt-3"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <input
+              placeholder="Summary"
+              className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#667eea] mt-3"
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+            />
 
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700">
-                Main Clients serviced (comma-separated)
+            {/* Parent page selector */}
+            <div className="mt-3">
+              <label className="block text-sm font-semibold mb-2 text-[#1a1a1a]">
+                Parent Page (optional - for nested pages)
               </label>
-              <input
-                className="w-full border p-2 rounded"
-                placeholder="Client A, Client B"
-                value={clientsText}
-                onChange={(e) => setClientsText(e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                className="flex-1 border p-2 rounded"
-                placeholder="Photo URL"
-                value={photoUrl}
-                onChange={(e) => setPhotoUrl(e.target.value)}
-              />
-              <button
-                type="button"
-                className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm"
-                onClick={uploadPhoto}
+              <select
+                className="w-full border border-gray-300 p-3 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#667eea]"
+                value={parentSlug}
+                onChange={(e) => setParentSlug(e.target.value)}
               >
-                Upload…
-              </button>
+                <option value="">None (Top Level)</option>
+                {list
+                  .filter(p => p.slug !== slug) // Don't allow selecting itself as parent
+                  .map(p => (
+                    <option key={p.slug} value={p.slug}>
+                      {p.title}
+                    </option>
+                  ))}
+              </select>
+              <p className="text-xs text-[#666] mt-1">
+                Select a parent to nest this page under another page
+              </p>
             </div>
 
-            <div className="mt-2">
-              <label className="block text-sm font-medium mb-1 text-gray-700">
-                Profile description
+            {/* Section selector */}
+            <div className="mt-3">
+              <label className="block text-sm font-semibold mb-2 text-[#1a1a1a]">
+                Section (optional - used on the homepage)
               </label>
-              <PolicyEditor value={profileDescHtml} onChange={setProfileDescHtml} token={token} />
+              <select
+                className="w-full border border-gray-300 p-3 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#667eea]"
+                value={sectionKey}
+                onChange={(e) => setSectionKey(e.target.value)}
+              >
+                <option value="">Unassigned</option>
+                {sections.map((s) => (
+                  <option key={s.key} value={s.key}>{s.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-[#666] mt-1">
+                Choose a section to group this article on the homepage.
+              </p>
             </div>
 
-            <div className="flex gap-2">
+            {/* Box linking */}
+            <div className="mt-4 p-4 border border-gray-200 rounded-xl bg-gray-50">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex flex-col">
+                  <label className="text-sm font-semibold mb-2 text-[#1a1a1a]">
+                    Box Folder ID (for Related Files panel)
+                  </label>
+                  <input
+                    className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#667eea]"
+                    placeholder="e.g. 0 or a specific folder id"
+                    value={boxFolderId}
+                    onChange={(e) => setBoxFolderId(e.target.value)}
+                  />
+                  <p className="text-xs text-[#666] mt-1">
+                    Set to a specific Box folder ID to show a read/preview-only file tree on the article page.
+                  </p>
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-sm font-semibold mb-2 text-[#1a1a1a]">
+                    Box File IDs (comma-separated)
+                  </label>
+                  <input
+                    className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#667eea]"
+                    placeholder="12345, 67890"
+                    value={boxFileIdsText}
+                    onChange={(e) => setBoxFileIdsText(e.target.value)}
+                  />
+                  <p className="text-xs text-[#666] mt-1">
+                    Optional: add specific file IDs to link under the tree.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <PolicyEditor value={bodyHtml} onChange={setBodyHtml} token={token} />
+            </div>
+            <div className="flex gap-3 mt-4">
               <button
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium"
-                onClick={saveProfile}
+                className="px-6 py-3 text-white rounded-lg font-semibold transition-all hover:shadow-lg"
+                style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
+                onClick={save}
               >
-                Save Profile
+                Save Article
               </button>
               <button
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={delProfile}
+                className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                onClick={del}
                 disabled={!slug}
-                title={!slug ? 'Load a profile first' : 'Delete this profile'}
+                title={!slug ? 'Load an article first' : 'Delete this article'}
               >
-                Delete Profile
+                Delete
               </button>
             </div>
-          </div>
-        </section>
-      </div>
-    </main>
+
+            </div>
+
+            {/* Profile form */}
+            <div className={contentType === 'profile' ? '' : 'hidden'}>
+              <input
+                placeholder="slug (kebab-case)"
+                className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#667eea]"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+              />
+              <div className="grid gap-3 md:grid-cols-2 mt-3">
+                <input
+                  placeholder="First Name"
+                  className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#667eea]"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+                <input
+                  placeholder="Last Name"
+                  className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#667eea]"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+                <input
+                  placeholder="Job Title"
+                  className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#667eea]"
+                  value={jobTitle}
+                  onChange={(e) => setJobTitle(e.target.value)}
+                />
+                <input
+                  placeholder="Email Address"
+                  className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#667eea]"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="mt-3">
+                <label className="block text-sm font-semibold mb-2 text-[#1a1a1a]">
+                  Main Clients serviced (comma-separated)
+                </label>
+                <input
+                  className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#667eea]"
+                  placeholder="Client A, Client B"
+                  value={clientsText}
+                  onChange={(e) => setClientsText(e.target.value)}
+                />
+              </div>
+
+              <div className="flex items-center gap-3 mt-3">
+                <input
+                  className="flex-1 border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#667eea]"
+                  placeholder="Photo URL"
+                  value={photoUrl}
+                  onChange={(e) => setPhotoUrl(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="px-4 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm font-medium transition-colors"
+                  onClick={uploadPhoto}
+                >
+                  Upload…
+                </button>
+              </div>
+
+              <div className="mt-4">
+                <label className="block text-sm font-semibold mb-2 text-[#1a1a1a]">
+                  Profile description
+                </label>
+                <PolicyEditor value={profileDescHtml} onChange={setProfileDescHtml} token={token} />
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  className="px-6 py-3 text-white rounded-lg font-semibold transition-all hover:shadow-lg"
+                  style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}
+                  onClick={saveProfile}
+                >
+                  Save Profile
+                </button>
+                <button
+                  className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  onClick={delProfile}
+                  disabled={!slug}
+                  title={!slug ? 'Load a profile first' : 'Delete this profile'}
+                >
+                  Delete Profile
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
   );
 }
