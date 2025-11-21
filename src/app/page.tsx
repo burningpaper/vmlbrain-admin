@@ -53,7 +53,6 @@ export default function HomePage() {
   const [people, setPeople] = useState<Person[]>([]);
   const [latestAdded, setLatestAdded] = useState<Page[]>([]);
   const [latestUpdated, setLatestUpdated] = useState<Page[]>([]);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -61,7 +60,6 @@ export default function HomePage() {
       setIsLoading(true);
       const fetchPolicies = async (builder: (cols: string) => Promise<{ data: unknown; error: unknown }>) => {
         const primary = await builder(POLICY_SELECT);
-        // @ts-ignore
         if (!(primary as { error?: unknown }).error) return (primary as { data: Page[] }).data || [];
         const fallback = await builder(POLICY_SELECT_FALLBACK);
         return (fallback as { data: Page[] }).data || [];
@@ -140,11 +138,6 @@ export default function HomePage() {
       pages: topLevelPages.filter((p) => p.section_key === sec.key),
     }));
 
-  // Get children for a page
-  const getChildren = (parentSlug: string) => {
-    return allPages.filter((p) => p.parent_slug === parentSlug);
-  };
-
   // All pages in a section (any depth)
   const getSectionPages = (sectionKey: string) => {
     return allPages.filter((p) => (p.section_key || '') === sectionKey);
@@ -193,16 +186,6 @@ export default function HomePage() {
     const target = event.target as HTMLElement;
     if (target.closest('a')) return;
     router.push(landingPath);
-  };
-
-  const toggleCategory = (categoryName: string) => {
-    const newExpanded = new Set(expandedCategories);
-    if (newExpanded.has(categoryName)) {
-      newExpanded.delete(categoryName);
-    } else {
-      newExpanded.add(categoryName);
-    }
-    setExpandedCategories(newExpanded);
   };
 
   // Gradient backgrounds for feature cards
