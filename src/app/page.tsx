@@ -58,11 +58,12 @@ export default function HomePage() {
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true);
-      const fetchPolicies = async (builder: (cols: string) => Promise<{ data: unknown; error: unknown }>) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const fetchPolicies = async (builder: (cols: string) => any) => {
         const primary = await builder(POLICY_SELECT);
-        if (!(primary as { error?: unknown }).error) return (primary as { data: Page[] }).data || [];
+        if (!primary.error) return (primary.data as Page[]) || [];
         const fallback = await builder(POLICY_SELECT_FALLBACK);
-        return (fallback as { data: Page[] }).data || [];
+        return (fallback.data as Page[]) || [];
       };
 
       // Get all top-level pages (no parent)

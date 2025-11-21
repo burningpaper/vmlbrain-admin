@@ -84,6 +84,7 @@ export default function SidebarNav({ items, sections }: SidebarNavProps) {
       initParents.add(currentItem.slug);
     }
     setExpandedParents(initParents);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, items]);
 
   const toggleCategory = (categoryName: string) => {
