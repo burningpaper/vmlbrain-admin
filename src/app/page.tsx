@@ -282,10 +282,6 @@ export default function HomePage() {
         <div className="relative text-center text-white max-w-[800px] px-8">
           <h1 className="text-5xl font-extrabold mb-4 tracking-tight">Knowledge Base</h1>
           <p className="text-xl font-light opacity-95">Your central hub for company policies, guides, and documentation</p>
-          <div className="mt-6 flex gap-4 justify-center">
-            <Link href="/people" className="btn btn-primary">View People</Link>
-            <Link href="/files" className="btn btn-secondary">Explore Resources</Link>
-          </div>
         </div>
       </section>
 
