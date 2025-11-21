@@ -150,7 +150,7 @@ export default function SidebarNav({ items, sections }: SidebarNavProps) {
                           href={`/p/${page.slug}`}
                           className={`block py-1.5 px-3 ml-6 text-sm rounded-lg transition-colors ${
                             isActive
-                              ? 'bg-[#667eea] bg-opacity-10 text-[#667eea] font-medium'
+                              ? 'bg-[#eef0ff] text-[#667eea] font-medium border border-[#dfe2ff]'
                               : 'text-[#4a4a4a] hover:bg-gray-100'
                           }`}
                         >
@@ -181,7 +181,7 @@ export default function SidebarNav({ items, sections }: SidebarNavProps) {
                                 href={`/p/${page.slug}/${child.slug}`}
                                 className={`block py-1 px-3 ml-6 text-xs rounded-lg transition-colors flex items-center gap-1 ${
                                   isChildActive
-                                    ? 'bg-[#667eea] bg-opacity-10 text-[#667eea] font-medium'
+                                    ? 'bg-[#eef0ff] text-[#667eea] font-medium border border-[#dfe2ff]'
                                     : 'text-[#666] hover:bg-gray-100'
                                 }`}
                               >

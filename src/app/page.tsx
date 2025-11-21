@@ -150,18 +150,45 @@ export default function HomePage() {
       .reduce((sum, page) => sum + 1 + countDescendants(page.slug), 0);
   };
 
-  const getSectionLandingSlug = (sectionKey: string): string | null => {
-    const landing = topLevelPages.find((p) => p.section_key === sectionKey);
-    return landing ? landing.slug : null;
+  const pageMap = useMemo(() => {
+    const map = new Map<string, Page>();
+    allPages.forEach((p) => map.set(p.slug, p));
+    return map;
+  }, [allPages]);
+
+  const buildPathFromSlug = (slug: string): string | null => {
+    const pathParts: string[] = [];
+    let current: Page | undefined = pageMap.get(slug);
+    // Walk up to root
+    while (current) {
+      pathParts.unshift(current.slug);
+      if (!current.parent_slug) break;
+      current = pageMap.get(current.parent_slug);
+    }
+    if (pathParts.length === 0) return null;
+    return `/p/${pathParts.join('/')}`;
+  };
+
+  const getSectionLandingPath = (sectionKey: string): string | null => {
+    // Prefer top-level page for the section
+    const topLevel = topLevelPages.find((p) => p.section_key === sectionKey);
+    if (topLevel) return `/p/${topLevel.slug}`;
+
+    // Fallback: any page in the section (child), build its full path
+    const anyPage = allPages.find((p) => p.section_key === sectionKey);
+    if (anyPage) {
+      return buildPathFromSlug(anyPage.slug);
+    }
+    return null;
   };
 
   const handleSectionClick = (sectionKey: string) => (event: React.MouseEvent) => {
-    const landingSlug = getSectionLandingSlug(sectionKey);
-    if (!landingSlug) return;
+    const landingPath = getSectionLandingPath(sectionKey);
+    if (!landingPath) return;
     // Avoid interfering with inner links
     const target = event.target as HTMLElement;
     if (target.closest('a')) return;
-    router.push(`/p/${landingSlug}`);
+    router.push(landingPath);
   };
 
   const toggleCategory = (categoryName: string) => {
@@ -251,8 +278,8 @@ export default function HomePage() {
               <div
                 key={category.key}
                 className="feature-card"
-                role={getSectionLandingSlug(category.key) ? 'button' : undefined}
-                tabIndex={getSectionLandingSlug(category.key) ? 0 : -1}
+                role={getSectionLandingPath(category.key) ? 'button' : undefined}
+                tabIndex={getSectionLandingPath(category.key) ? 0 : -1}
                 onClick={handleSectionClick(category.key)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -372,8 +399,8 @@ export default function HomePage() {
                 <div
                   key={category.key}
                   className="news-card"
-                  role={getSectionLandingSlug(category.key) ? 'button' : undefined}
-                  tabIndex={getSectionLandingSlug(category.key) ? 0 : -1}
+                  role={getSectionLandingPath(category.key) ? 'button' : undefined}
+                  tabIndex={getSectionLandingPath(category.key) ? 0 : -1}
                   onClick={handleSectionClick(category.key)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
