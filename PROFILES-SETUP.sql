@@ -10,6 +10,7 @@ create table if not exists public.profiles (
   job_title text not null,
   description_html text not null,
   clients text[] default '{}'::text[],
+  experience text,
   photo_url text,
   email text not null,
   status text not null default 'approved' check (status in ('approved','draft')),

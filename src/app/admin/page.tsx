@@ -53,6 +53,7 @@ export default function AdminPage() {
   const [clientsText, setClientsText] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
   const [email, setEmail] = useState('');
+  const [experience, setExperience] = useState('');
 
   // Fetch all policies for the sidebar
   useEffect(() => {
@@ -156,6 +157,7 @@ export default function AdminPage() {
       setClientsText(Array.isArray(row.clients) ? (row.clients as string[]).join(',') : '');
       setPhotoUrl(row.photo_url || '');
       setProfileDescHtml(row.description_html || '<p></p>');
+      setExperience((row as { experience?: string | null }).experience || '');
     }
   }
 
@@ -207,6 +209,7 @@ export default function AdminPage() {
         photo_url: photoUrl || null,
         email,
         status: 'approved',
+        experience: experience || null,
       }),
     });
     if (!res.ok) {
@@ -650,10 +653,22 @@ export default function AdminPage() {
                   Main Clients serviced (comma-separated)
                 </label>
                 <input
+              className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#667eea]"
+              placeholder="Client A, Client B"
+              value={clientsText}
+              onChange={(e) => setClientsText(e.target.value)}
+            />
+              </div>
+
+              <div className="mt-3">
+                <label className="block text-sm font-semibold mb-2 text-[#1a1a1a]">
+                  Past work experience (comma-separated)
+                </label>
+                <input
                   className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#667eea]"
-                  placeholder="Client A, Client B"
-                  value={clientsText}
-                  onChange={(e) => setClientsText(e.target.value)}
+                  placeholder="Creative Director at VML South Africa (2015-2018), Copywriter at Joe Public (2010-2012)"
+                  value={experience}
+                  onChange={(e) => setExperience(e.target.value)}
                 />
               </div>
 

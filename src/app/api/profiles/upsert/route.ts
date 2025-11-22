@@ -16,6 +16,7 @@ export async function POST(req: Request) {
     photo_url = null,
     email,
     status = 'approved',
+    experience = null,
   } = await req.json();
 
   if (!slug || !first_name || !last_name || !job_title || !description_html || !email) {
@@ -40,6 +41,7 @@ export async function POST(req: Request) {
         photo_url: photo_url || null,
         email,
         status,
+        experience: experience || null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'slug' }

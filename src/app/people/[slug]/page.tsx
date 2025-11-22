@@ -17,6 +17,7 @@ interface ProfileRow {
   clients: string[] | null;
   photo_url: string | null;
   email: string;
+  experience?: string | null;
   status?: string;
 }
 
@@ -25,12 +26,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ slug: 
   if (!slug) notFound();
 
   // Get the profile
-  const { data, error } = await supa
-    .from('profiles')
-    .select('*')
-    .eq('slug', slug)
-    .eq('status', 'approved')
-    .single();
+    const { data, error } = await supa
+      .from('profiles')
+      .select('*')
+      .eq('slug', slug)
+      .eq('status', 'approved')
+      .single();
 
   if (error || !data) notFound();
   const profile = data as ProfileRow;
@@ -138,6 +139,23 @@ export default async function ProfilePage({ params }: { params: Promise<{ slug: 
                 dangerouslySetInnerHTML={{ __html: profile.description_html }}
               />
             </article>
+
+            {/* Work Experience */}
+            {profile.experience && profile.experience.trim() !== '' && (
+              <section className="mt-10">
+                <h2 className="text-2xl font-semibold text-[#1a1a1a] mb-3">Work Experience</h2>
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                  <ul className="space-y-2 text-[#4a4a4a]">
+                    {profile.experience.split(';').map((item) => (
+                      <li key={item} className="flex items-start gap-2">
+                        <span className="mt-1 text-[#667eea]">•</span>
+                        <span>{item.trim()}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </section>
+            )}
           </main>
 
           {/* Right sidebar: navigation */}

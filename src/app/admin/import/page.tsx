@@ -22,10 +22,23 @@ type ImportArticle = {
   assets?: ImportAsset[];
 };
 
+type ImportProfile = {
+  slug: string;
+  first_name: string;
+  last_name: string;
+  job_title: string;
+  email: string;
+  description_html: string;
+  clients?: string[] | null;
+  photo_url?: string | null;
+  status?: 'approved' | 'draft';
+  experience?: string | null;
+};
 type ImportPayload = {
   version: string;
   source?: string;
   articles: ImportArticle[];
+  profiles?: ImportProfile[];
 };
 
 function isKebabCaseSlug(s: string) {
@@ -42,7 +55,9 @@ function guessFormat(text: string): 'json' | 'xml' {
 function parseJSON(text: string): ImportPayload {
   const obj = JSON.parse(text);
   if (!obj || typeof obj !== 'object') throw new Error('Invalid JSON root');
-  if (!Array.isArray(obj.articles)) throw new Error('JSON must have "articles" array');
+  if (!Array.isArray((obj as ImportPayload).articles) && !Array.isArray((obj as ImportPayload).profiles)) {
+    throw new Error('JSON must have either "articles" or "profiles" array');
+  }
   return obj as ImportPayload;
 }
 
@@ -58,84 +73,124 @@ function parseXML(text: string): ImportPayload {
   const version = root.getAttribute('version') || '1.0';
   const source = root.getAttribute('source') || undefined;
 
-  const articlesEl = root.querySelector('articles');
-  if (!articlesEl) throw new Error('<kb> must contain <articles>');
-
   const articles: ImportArticle[] = [];
-  const articleEls = Array.from(articlesEl.querySelectorAll(':scope > article'));
-  for (const a of articleEls) {
-    const get = (tag: string) => a.querySelector(tag)?.textContent ?? '';
-    const getOpt = (tag: string) => {
-      const val = a.querySelector(tag)?.textContent ?? '';
-      return val === '' ? null : val;
-    };
-    const slug = get('slug').trim();
-    const title = get('title').trim();
-    const summary = (a.querySelector('summary')?.textContent ?? '').trim() || null;
+  const profiles: ImportProfile[] = [];
 
-    // body_html inside CDATA or text
-    const bodyNode = a.querySelector('body_html');
-    let body_html = '';
-    if (bodyNode) {
-      // Collect textContent, which includes CDATA content
-      body_html = bodyNode.textContent || '';
-    }
+  const articlesEl = root.querySelector('articles');
+  if (articlesEl) {
+    const articleEls = Array.from(articlesEl.querySelectorAll(':scope > article'));
+    for (const a of articleEls) {
+      const get = (tag: string) => a.querySelector(tag)?.textContent ?? '';
+      const getOpt = (tag: string) => {
+        const val = a.querySelector(tag)?.textContent ?? '';
+        return val === '' ? null : val;
+      };
+      const slug = get('slug').trim();
+      const title = get('title').trim();
+      const summary = (a.querySelector('summary')?.textContent ?? '').trim() || null;
 
-    const parent_slug_raw = (a.querySelector('parent_slug')?.textContent ?? '').trim();
-    const parent_slug = parent_slug_raw === '' ? null : parent_slug_raw;
-
-    // audience
-    const aud: string[] = [];
-    const audVals = Array.from(a.querySelectorAll('audience > value'));
-    for (const v of audVals) {
-      const t = (v.textContent || '').trim();
-      if (t) aud.push(t);
-    }
-
-    // status
-    const statusText = (a.querySelector('status')?.textContent || '').trim();
-    const status = statusText === 'draft' ? 'draft' : statusText === 'approved' ? 'approved' : undefined;
-
-    const box_folder_id = getOpt('box_folder_id');
-    const box_file_ids: string[] | null = (() => {
-      const idsEl = a.querySelector('box_file_ids');
-      if (!idsEl) return null;
-      const arr = (idsEl.textContent || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      return arr.length ? arr : null;
-    })();
-
-    // assets
-    const assets: ImportAsset[] = [];
-    const assetEls = Array.from(a.querySelectorAll(':scope > assets > asset'));
-    for (const as of assetEls) {
-      const filename = (as.querySelector('filename')?.textContent || '').trim();
-      const mime_type = (as.querySelector('mime_type')?.textContent || '').trim();
-      const data_base64 = (as.querySelector('data_base64')?.textContent || '').replace(/\s+/g, '');
-      const alt = (as.querySelector('alt')?.textContent || '').trim() || undefined;
-      if (filename && mime_type && data_base64) {
-        assets.push({ filename, mime_type, data_base64, alt });
+      // body_html inside CDATA or text
+      const bodyNode = a.querySelector('body_html');
+      let body_html = '';
+      if (bodyNode) {
+        // Collect textContent, which includes CDATA content
+        body_html = bodyNode.textContent || '';
       }
-    }
 
-    const article: ImportArticle = {
-      slug,
-      title,
-      summary,
-      body_html,
-      parent_slug,
-      audience: aud.length ? aud : undefined,
-      status,
-      box_folder_id,
-      box_file_ids,
-      assets: assets.length ? assets : undefined,
-    };
-    articles.push(article);
+      const parent_slug_raw = (a.querySelector('parent_slug')?.textContent ?? '').trim();
+      const parent_slug = parent_slug_raw === '' ? null : parent_slug_raw;
+
+      // audience
+      const aud: string[] = [];
+      const audVals = Array.from(a.querySelectorAll('audience > value'));
+      for (const v of audVals) {
+        const t = (v.textContent || '').trim();
+        if (t) aud.push(t);
+      }
+
+      // status
+      const statusText = (a.querySelector('status')?.textContent || '').trim();
+      const status = statusText === 'draft' ? 'draft' : statusText === 'approved' ? 'approved' : undefined;
+
+      const box_folder_id = getOpt('box_folder_id');
+      const box_file_ids: string[] | null = (() => {
+        const idsEl = a.querySelector('box_file_ids');
+        if (!idsEl) return null;
+        const arr = (idsEl.textContent || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        return arr.length ? arr : null;
+      })();
+
+      // assets
+      const assets: ImportAsset[] = [];
+      const assetEls = Array.from(a.querySelectorAll(':scope > assets > asset'));
+      for (const as of assetEls) {
+        const filename = (as.querySelector('filename')?.textContent || '').trim();
+        const mime_type = (as.querySelector('mime_type')?.textContent || '').trim();
+        const data_base64 = (as.querySelector('data_base64')?.textContent || '').replace(/\s+/g, '');
+        const alt = (as.querySelector('alt')?.textContent || '').trim() || undefined;
+        if (filename && mime_type && data_base64) {
+          assets.push({ filename, mime_type, data_base64, alt });
+        }
+      }
+
+      const article: ImportArticle = {
+        slug,
+        title,
+        summary,
+        body_html,
+        parent_slug,
+        audience: aud.length ? aud : undefined,
+        status,
+        box_folder_id,
+        box_file_ids,
+        assets: assets.length ? assets : undefined,
+      };
+      articles.push(article);
+    }
   }
 
-  return { version, source, articles };
+  const profilesEl = root.querySelector('profiles');
+  if (profilesEl) {
+    const profileEls = Array.from(profilesEl.querySelectorAll(':scope > profile'));
+    for (const p of profileEls) {
+      const get = (tag: string) => p.querySelector(tag)?.textContent ?? '';
+      const slug = get('slug').trim();
+      const first_name = get('first_name').trim();
+      const last_name = get('last_name').trim();
+      const job_title = get('job_title').trim();
+      const email = get('email').trim();
+      const description_html = get('description_html').trim();
+      const clientsRaw = (p.querySelector('clients')?.textContent || '').trim();
+      const clients = clientsRaw
+        ? clientsRaw
+            .split(',')
+            .map((c) => c.trim())
+            .filter(Boolean)
+        : [];
+      const photo_url = get('photo_url').trim() || null;
+      const statusText = get('status').trim();
+      const status = statusText === 'draft' ? 'draft' : statusText === 'approved' ? 'approved' : undefined;
+      const experience = get('experience').trim() || null;
+
+      profiles.push({
+        slug,
+        first_name,
+        last_name,
+        job_title,
+        email,
+        description_html,
+        clients,
+        photo_url,
+        status,
+        experience,
+      });
+    }
+  }
+
+  return { version, source, articles, profiles };
 }
 
 async function uploadAsset(token: string, asset: ImportAsset): Promise<string> {
@@ -180,22 +235,22 @@ export default function ImportPage() {
   const [preview, setPreview] = useState<string>('');
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState<string>('');
+  const [mode, setMode] = useState<'articles' | 'profiles'>('articles');
 
 
   const detected = useMemo(() => guessFormat(raw), [raw]);
 
-  function validatePayload(p: ImportPayload) {
-    const errors: string[] = [];
-    if (!p.articles || !Array.isArray(p.articles) || p.articles.length === 0) {
-      errors.push('No articles found.');
-      return errors;
-    }
-    const seen = new Set<string>();
+function validatePayload(p: ImportPayload) {
+  const errors: string[] = [];
+  const seenArticles = new Set<string>();
+  const seenProfiles = new Set<string>();
+
+  if (p.articles && Array.isArray(p.articles)) {
     for (const art of p.articles) {
       if (!art.slug) errors.push('Article missing slug.');
       if (art.slug && !isKebabCaseSlug(art.slug)) errors.push(`Invalid slug: ${art.slug} (must be lowercase-kebab-case)`);
-      if (art.slug && seen.has(art.slug)) errors.push(`Duplicate slug in payload: ${art.slug}`);
-      if (art.slug) seen.add(art.slug);
+      if (art.slug && seenArticles.has(art.slug)) errors.push(`Duplicate article slug in payload: ${art.slug}`);
+      if (art.slug) seenArticles.add(art.slug);
       if (!art.title) errors.push(`Missing title for slug ${art.slug}`);
       if (!art.body_html) errors.push(`Missing body_html for slug ${art.slug}`);
       if (art.box_folder_id && !/^\d+$/.test(art.box_folder_id)) errors.push(`box_folder_id must be numeric for slug ${art.slug}`);
@@ -208,8 +263,28 @@ export default function ImportPage() {
         }
       }
     }
-    return errors;
   }
+
+  if (p.profiles && Array.isArray(p.profiles)) {
+    for (const prof of p.profiles) {
+      if (!prof.slug) errors.push('Profile missing slug.');
+      if (prof.slug && !isKebabCaseSlug(prof.slug)) errors.push(`Invalid profile slug: ${prof.slug} (must be lowercase-kebab-case)`);
+      if (prof.slug && seenProfiles.has(prof.slug)) errors.push(`Duplicate profile slug in payload: ${prof.slug}`);
+      if (prof.slug) seenProfiles.add(prof.slug);
+      if (!prof.first_name) errors.push(`Profile ${prof.slug || ''} missing first_name`);
+      if (!prof.last_name) errors.push(`Profile ${prof.slug || ''} missing last_name`);
+      if (!prof.job_title) errors.push(`Profile ${prof.slug || ''} missing job_title`);
+      if (!prof.email) errors.push(`Profile ${prof.slug || ''} missing email`);
+      if (!prof.description_html) errors.push(`Profile ${prof.slug || ''} missing description_html`);
+      if (prof.experience && typeof prof.experience !== 'string') errors.push(`Profile ${prof.slug || ''} experience must be text`);
+    }
+  }
+
+  if ((!p.articles || p.articles.length === 0) && (!p.profiles || p.profiles.length === 0)) {
+    errors.push('No articles or profiles found.');
+  }
+  return errors;
+}
 
   function handleValidate() {
     try {
@@ -221,8 +296,13 @@ export default function ImportPage() {
         setPreview(`Validation errors:\n- ${errs.join('\n- ')}`);
       } else {
         setParsed(payload);
-        const titles = payload.articles.map((a) => `• ${a.slug} — ${a.title}${a.parent_slug ? ` (parent: ${a.parent_slug})` : ''}`).join('\n');
-        setPreview(`Parsed ${payload.articles.length} articles:\n${titles}`);
+        if (mode === 'articles') {
+          const titles = (payload.articles || []).map((a) => `• ${a.slug} — ${a.title}${a.parent_slug ? ` (parent: ${a.parent_slug})` : ''}`).join('\n');
+          setPreview(`Parsed ${(payload.articles || []).length} articles:\n${titles}`);
+        } else {
+          const names = (payload.profiles || []).map((p) => `• ${p.slug} — ${p.first_name} ${p.last_name} (${p.job_title})`).join('\n');
+          setPreview(`Parsed ${(payload.profiles || []).length} profiles:\n${names}`);
+        }
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -246,82 +326,113 @@ export default function ImportPage() {
 
     try {
       // Preprocess: upload assets and rewrite src for each article once
-      appendLog('Preprocessing assets…');
-      const processedHtml = new Map<string, string>();
-      for (const art of parsed.articles) {
-        let html = art.body_html;
-        const map: Record<string, string> = {};
-        if (art.assets && art.assets.length) {
-          for (const as of art.assets) {
-            appendLog(`  Uploading asset ${as.filename} for ${art.slug}…`);
-            const url = await uploadAsset(token, as);
-            map[as.filename] = url;
+      if (mode === 'articles') {
+        appendLog('Preprocessing assets…');
+        const processedHtml = new Map<string, string>();
+        for (const art of parsed.articles || []) {
+          let html = art.body_html;
+          const map: Record<string, string> = {};
+          if (art.assets && art.assets.length) {
+            for (const as of art.assets) {
+              appendLog(`  Uploading asset ${as.filename} for ${art.slug}…`);
+              const url = await uploadAsset(token, as);
+              map[as.filename] = url;
+            }
+            html = rewriteAssetsSrc(html, map);
           }
-          html = rewriteAssetsSrc(html, map);
+          processedHtml.set(art.slug, html);
         }
-        processedHtml.set(art.slug, html);
+
+        // Pass 1: seed all pages with parent_slug = null to avoid FK violations
+        appendLog('Seeding pages (parent_slug=null)…');
+        for (const art of parsed.articles || []) {
+          appendLog(`  Seeding ${art.slug}…`);
+          const res = await fetch('/api/policies/upsert', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'x-edit-token': token,
+            },
+            body: JSON.stringify({
+              slug: art.slug,
+              title: art.title,
+              summary: art.summary || null,
+              body_md: processedHtml.get(art.slug) || art.body_html,
+              parent_slug: null,
+              audience: art.audience || ['All'],
+              status: art.status || 'approved',
+              box_folder_id: art.box_folder_id || null,
+              box_file_ids: art.box_file_ids || null,
+            }),
+          });
+          if (!res.ok) {
+            const t = await res.text();
+            appendLog(`  ERROR: seed upsert failed for ${art.slug}: ${t}`);
+            throw new Error(`Seed upsert failed for ${art.slug}`);
+          }
+        }
+
+        // Pass 2: apply real parent_slug (if provided). If a parent is missing, log the error and continue.
+        appendLog('Applying parent relationships…');
+        for (const art of parsed.articles || []) {
+          if (!art.parent_slug) continue;
+          appendLog(`  Setting parent of ${art.slug} -> ${art.parent_slug}`);
+          const res = await fetch('/api/policies/upsert', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'x-edit-token': token,
+            },
+            body: JSON.stringify({
+              slug: art.slug,
+              title: art.title,
+              summary: art.summary || null,
+              body_md: processedHtml.get(art.slug) || art.body_html,
+              parent_slug: art.parent_slug,
+              audience: art.audience || ['All'],
+              status: art.status || 'approved',
+              box_folder_id: art.box_folder_id || null,
+              box_file_ids: art.box_file_ids || null,
+            }),
+          });
+          if (!res.ok) {
+            const t = await res.text();
+            appendLog(`  ERROR: parent update failed for ${art.slug}: ${t}`);
+            // Do not throw here so the rest can still complete; user can re-run after fixing parents.
+          }
+        }
+      } else {
+        appendLog('Importing profiles…');
+        for (const prof of parsed.profiles || []) {
+          appendLog(`  Upserting profile ${prof.slug}…`);
+          const res = await fetch('/api/profiles/upsert', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'x-edit-token': token,
+            },
+            body: JSON.stringify({
+              slug: prof.slug,
+              first_name: prof.first_name,
+              last_name: prof.last_name,
+              job_title: prof.job_title,
+              email: prof.email,
+              description_html: prof.description_html,
+              clients: prof.clients || [],
+              photo_url: prof.photo_url || null,
+              status: prof.status || 'approved',
+              experience: prof.experience || null,
+            }),
+          });
+          if (!res.ok) {
+            const t = await res.text();
+            appendLog(`  ERROR: profile upsert failed for ${prof.slug}: ${t}`);
+            throw new Error(`Profile upsert failed for ${prof.slug}`);
+          }
+        }
       }
 
-      // Pass 1: seed all pages with parent_slug = null to avoid FK violations
-      appendLog('Seeding pages (parent_slug=null)…');
-      for (const art of parsed.articles) {
-        appendLog(`  Seeding ${art.slug}…`);
-        const res = await fetch('/api/policies/upsert', {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            'x-edit-token': token,
-          },
-          body: JSON.stringify({
-            slug: art.slug,
-            title: art.title,
-            summary: art.summary || null,
-            body_md: processedHtml.get(art.slug) || art.body_html,
-            parent_slug: null,
-            audience: art.audience || ['All'],
-            status: art.status || 'approved',
-            box_folder_id: art.box_folder_id || null,
-            box_file_ids: art.box_file_ids || null,
-          }),
-        });
-        if (!res.ok) {
-          const t = await res.text();
-          appendLog(`  ERROR: seed upsert failed for ${art.slug}: ${t}`);
-          throw new Error(`Seed upsert failed for ${art.slug}`);
-        }
-      }
-
-      // Pass 2: apply real parent_slug (if provided). If a parent is missing, log the error and continue.
-      appendLog('Applying parent relationships…');
-      for (const art of parsed.articles) {
-        if (!art.parent_slug) continue;
-        appendLog(`  Setting parent of ${art.slug} -> ${art.parent_slug}`);
-        const res = await fetch('/api/policies/upsert', {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            'x-edit-token': token,
-          },
-          body: JSON.stringify({
-            slug: art.slug,
-            title: art.title,
-            summary: art.summary || null,
-            body_md: processedHtml.get(art.slug) || art.body_html,
-            parent_slug: art.parent_slug,
-            audience: art.audience || ['All'],
-            status: art.status || 'approved',
-            box_folder_id: art.box_folder_id || null,
-            box_file_ids: art.box_file_ids || null,
-          }),
-        });
-        if (!res.ok) {
-          const t = await res.text();
-          appendLog(`  ERROR: parent update failed for ${art.slug}: ${t}`);
-          // Do not throw here so the rest can still complete; user can re-run after fixing parents.
-        }
-      }
-
-      appendLog('DONE: Import completed (check log for any parent errors).');
+      appendLog('DONE: Import completed.');
       alert('Import completed.');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -360,6 +471,17 @@ export default function ImportPage() {
         />
         <div className="flex items-center gap-3 mt-2 text-sm">
           <span>Detected: <code className="bg-gray-100 px-1 rounded">{detected.toUpperCase()}</code></span>
+          <label className="flex items-center gap-1">
+            <span className="text-xs uppercase tracking-wide text-gray-500 mr-1">Mode</span>
+            <select
+              className="border rounded px-2 py-1 text-sm"
+              value={mode}
+              onChange={(e) => setMode(e.target.value as 'articles' | 'profiles')}
+            >
+              <option value="articles">Knowledge (Policies)</option>
+              <option value="profiles">Profiles</option>
+            </select>
+          </label>
           <label className="flex items-center gap-1">
             <input
               type="radio"
