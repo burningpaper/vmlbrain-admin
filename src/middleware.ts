@@ -20,9 +20,19 @@ import type { NextRequest } from 'next/server';
  * Force no-cache and enforce IP allowlist.
  */
 export function middleware(req: NextRequest) {
+  const path = req.nextUrl.pathname;
+
   // Allow the keepalive endpoint unconditionally (scheduler pings)
   if (req.nextUrl.pathname.startsWith('/api/keepalive')) {
     return NextResponse.next();
+  }
+
+  // Allow authenticated API imports (edit token) to bypass SSO enforcement
+  if (path.startsWith('/api')) {
+    const editToken = req.headers.get('x-edit-token');
+    if (editToken && process.env.EDIT_TOKEN && editToken === process.env.EDIT_TOKEN) {
+      return NextResponse.next();
+    }
   }
 
   // Enforce SSO session if configured: require kb_sso cookie in production.
@@ -31,7 +41,6 @@ export function middleware(req: NextRequest) {
   const ssoLoginUrl = process.env.SSO_LOGIN_URL || '';
   const isProdEnv = process.env.NODE_ENV === 'production';
   if (isProdEnv) {
-    const path = req.nextUrl.pathname;
     const isExempt =
       path.startsWith('/api/auth/callback') ||
       path.startsWith('/api/auth/logout') ||
