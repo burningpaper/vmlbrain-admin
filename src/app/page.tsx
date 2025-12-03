@@ -2,6 +2,7 @@ import { supa } from '@/lib/supabase';
 import Link from 'next/link';
 import Image from 'next/image';
 import FeatureCard from '@/components/FeatureCard';
+import FlyingBird from '@/components/FlyingBird';
 import { Page, SectionRow, Person, Category } from '@/types';
 
 const POLICY_SELECT = 'slug, title, summary, parent_slug, section_key, created_at, updated_at';
@@ -155,6 +156,7 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-white">
+      <FlyingBird />
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
         <nav className="max-w-[1400px] mx-auto px-8 py-6 flex justify-between items-center">
