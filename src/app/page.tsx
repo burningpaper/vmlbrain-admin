@@ -1,163 +1,125 @@
-'use client';
-
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { supa } from '@/lib/supabase';
 import Link from 'next/link';
 import Image from 'next/image';
-import { RiBuilding2Line, RiTeamLine, RiHandHeartLine, RiClipboardLine, RiBookOpenLine } from 'react-icons/ri';
-
-type Page = {
-  slug: string;
-  title: string;
-  summary: string | null;
-  parent_slug: string | null;
-  section_key: string | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-};
-
-type SectionRow = {
-  key: string;
-  name: string;
-  icon: string | null;
-  image_name: string | null;
-  sort_order: number | null;
-};
-
-
-type Person = {
-  slug: string;
-  first_name: string;
-  last_name: string;
-  job_title: string;
-  photo_url: string | null;
-};
-
-type Category = {
-  key: string;
-  name: string;
-  icon: string;
-  imageName: string | null;
-  pages: Page[];
-};
+import FeatureCard from '@/components/FeatureCard';
+import { Page, SectionRow, Person, Category } from '@/types';
 
 const POLICY_SELECT = 'slug, title, summary, parent_slug, section_key, created_at, updated_at';
 const POLICY_SELECT_FALLBACK = 'slug, title, summary, parent_slug, section_key';
 
-export default function HomePage() {
-  const router = useRouter();
-  const [topLevelPages, setTopLevelPages] = useState<Page[]>([]);
-  const [allPages, setAllPages] = useState<Page[]>([]);
-  const [sections, setSections] = useState<SectionRow[]>([]);
-  const [people, setPeople] = useState<Person[]>([]);
-  const [latestAdded, setLatestAdded] = useState<Page[]>([]);
-  const [latestUpdated, setLatestUpdated] = useState<Page[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchPolicies(builder: (cols: string) => any) {
+  const primary = await builder(POLICY_SELECT);
+  if (!primary.error) return (primary.data as Page[]) || [];
+  const fallback = await builder(POLICY_SELECT_FALLBACK);
+  return (fallback.data as Page[]) || [];
+}
 
-  useEffect(() => {
-    async function fetchData() {
-      setIsLoading(true);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const fetchPolicies = async (builder: (cols: string) => any) => {
-        const primary = await builder(POLICY_SELECT);
-        if (!primary.error) return (primary.data as Page[]) || [];
-        const fallback = await builder(POLICY_SELECT_FALLBACK);
-        return (fallback.data as Page[]) || [];
-      };
+async function fetchLatest(
+  primaryField: 'created_at' | 'updated_at',
+  secondaryField: 'created_at' | 'updated_at' | null
+) {
+  // Try with primary field first
+  const { data, error } = await supa
+    .from('policies')
+    .select(POLICY_SELECT)
+    .or('status.eq.approved,status.eq.Approved,status.is.null,status.eq.')
+    .not(primaryField, 'is', null)
+    .order(primaryField, { ascending: false })
+    .limit(10);
 
-      // Get all top-level pages (no parent)
-      const topData = await fetchPolicies((cols) =>
-        supa
-          .from('policies')
-          .select(cols)
-          .or('parent_slug.is.null,parent_slug.eq.')
-          .order('title')
-      );
+  if (!error && data && data.length > 0) {
+    return data as Page[];
+  }
 
-      // Get all pages for children lookup
-      const allData = await fetchPolicies((cols) =>
-        supa
-          .from('policies')
-          .select(cols)
-          .order('title')
-      );
+  // Fallback: try without the null filter
+  const { data: fallbackData, error: fallbackError } = await supa
+    .from('policies')
+    .select(POLICY_SELECT)
+    .or('status.eq.approved,status.eq.Approved,status.is.null,status.eq.')
+    .order(primaryField, { ascending: false })
+    .limit(10);
 
-      // Get sections for homepage grouping
-      const { data: sectionsData, error: sectionsError } = await supa
-        .from('sections')
-        .select('key, name, icon, image_name, sort_order')
-        .order('sort_order');
-      let resolvedSections = (sectionsData as SectionRow[]) || [];
+  if (!fallbackError && fallbackData && fallbackData.length > 0) {
+    return fallbackData as Page[];
+  }
 
-      // Fallback for older schema without image_name column
-      if (sectionsError) {
-        const { data: fallbackSections } = await supa
-          .from('sections')
-          .select('key, name, icon, sort_order')
-          .order('sort_order');
-        resolvedSections = (fallbackSections as SectionRow[])?.map((sec) => ({
-          ...sec,
-          image_name: null,
-        })) || [];
-      }
+  // Try fallback select
+  if (secondaryField) {
+    const { data: secondaryData, error: secondaryError } = await supa
+      .from('policies')
+      .select(POLICY_SELECT_FALLBACK)
+      .or('status.eq.approved,status.eq.Approved,status.is.null,status.eq.')
+      .order(secondaryField, { ascending: false })
+      .limit(10);
 
-      const { data: peopleData } = await supa
-        .from('profiles')
-        .select('slug, first_name, last_name, job_title, photo_url')
-        .order('last_name')
-        .limit(6);
-
-      setTopLevelPages((topData as Page[]) || []);
-      setAllPages((allData as Page[]) || []);
-      setPeople((peopleData as Person[]) || []);
-      setSections(resolvedSections);
-      setLatestAdded(await fetchLatest('created_at', 'updated_at'));
-      setLatestUpdated(await fetchLatest('updated_at', 'created_at'));
-      setIsLoading(false);
+    if (!secondaryError && secondaryData && secondaryData.length > 0) {
+      return secondaryData as Page[];
     }
+  }
 
-    fetchData();
-  }, []);
+  return [];
+}
 
-  // Icon components map
-  const iconMap: Record<string, React.ReactNode> = {
-    building: <RiBuilding2Line className="text-[#667eea]" size={28} />,
-    users: <RiTeamLine className="text-[#667eea]" size={28} />,
-    handshake: <RiHandHeartLine className="text-[#667eea]" size={28} />,
-    clipboard: <RiClipboardLine className="text-[#667eea]" size={28} />,
-    book: <RiBookOpenLine className="text-[#667eea]" size={28} />,
-  };
+export default async function HomePage() {
+  // Parallel data fetching
+  const [topData, allData, sectionsResult, peopleResult, latestAdded, latestUpdated] = await Promise.all([
+    // Get all top-level pages
+    fetchPolicies((cols) =>
+      supa
+        .from('policies')
+        .select(cols)
+        .or('parent_slug.is.null,parent_slug.eq.')
+        .order('title')
+    ),
+    // Get all pages for children lookup
+    fetchPolicies((cols) =>
+      supa
+        .from('policies')
+        .select(cols)
+        .order('title')
+    ),
+    // Get sections
+    supa
+      .from('sections')
+      .select('key, name, icon, image_name, sort_order')
+      .order('sort_order'),
+    // Get people
+    supa
+      .from('profiles')
+      .select('slug, first_name, last_name, job_title, photo_url')
+      .order('last_name')
+      .limit(6),
+    // Latest added
+    fetchLatest('created_at', 'updated_at'),
+    // Latest updated
+    fetchLatest('updated_at', 'created_at'),
+  ]);
 
-  // Group pages by explicit sections from the database
-  const categories: Category[] = (sections || [])
-    .map((sec) => ({
-      key: sec.key,
-      name: sec.name,
-      icon: (sec.icon || 'book') as string,
-      imageName: sec.image_name || null,
-      pages: topLevelPages.filter((p) => p.section_key === sec.key),
-    }));
+  const topLevelPages = topData;
+  const allPages = allData;
+  const people = (peopleResult.data as Person[]) || [];
 
-  // All pages in a section (any depth)
-  const getSectionPages = (sectionKey: string) => {
-    return allPages.filter((p) => (p.section_key || '') === sectionKey);
-  };
+  // Handle sections fallback
+  let sections = (sectionsResult.data as SectionRow[]) || [];
+  if (sectionsResult.error) {
+    const { data: fallbackSections } = await supa
+      .from('sections')
+      .select('key, name, icon, sort_order')
+      .order('sort_order');
+    sections = (fallbackSections as SectionRow[])?.map((sec) => ({
+      ...sec,
+      image_name: null,
+    })) || [];
+  }
 
-  const totalArticlesInSection = (sectionKey: string): number => {
-    return getSectionPages(sectionKey).length;
-  };
-
-  const pageMap = useMemo(() => {
-    const map = new Map<string, Page>();
-    allPages.forEach((p) => map.set(p.slug, p));
-    return map;
-  }, [allPages]);
+  // Helper functions
+  const pageMap = new Map<string, Page>();
+  allPages.forEach((p) => pageMap.set(p.slug, p));
 
   const buildPathFromSlug = (slug: string): string | null => {
     const pathParts: string[] = [];
     let current: Page | undefined = pageMap.get(slug);
-    // Walk up to root
     while (current) {
       pathParts.unshift(current.slug);
       if (!current.parent_slug) break;
@@ -167,93 +129,29 @@ export default function HomePage() {
     return `/p/${pathParts.join('/')}`;
   };
 
+  const getSectionPages = (sectionKey: string) => {
+    return allPages.filter((p) => (p.section_key || '') === sectionKey);
+  };
+
+  const totalArticlesInSection = (sectionKey: string): number => {
+    return getSectionPages(sectionKey).length;
+  };
+
   const getSectionLandingPath = (sectionKey: string): string | null => {
-    // Prefer top-level page for the section
     const topLevel = topLevelPages.find((p) => p.section_key === sectionKey);
     if (topLevel) return `/p/${topLevel.slug}`;
-
-    // Fallback: any page in the section (child), build its full path
     const anyPage = allPages.find((p) => p.section_key === sectionKey);
-    if (anyPage) {
-      return buildPathFromSlug(anyPage.slug);
-    }
+    if (anyPage) return buildPathFromSlug(anyPage.slug);
     return null;
   };
 
-  const handleSectionClick = (sectionKey: string) => (event: React.MouseEvent) => {
-    const landingPath = getSectionLandingPath(sectionKey);
-    if (!landingPath) return;
-    // Avoid interfering with inner links
-    const target = event.target as HTMLElement;
-    if (target.closest('a')) return;
-    router.push(landingPath);
-  };
-
-  // Gradient backgrounds for feature cards
-  const gradients = [
-    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-    'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-  ];
-
-  // Image mapping for category cards (by section name)
-  const categoryImages: Record<string, string> = {
-    'How Do I...': '/homepage_howdoi.jpg',
-  };
-
-  const getSectionImageSrc = (imageName?: string | null, fallback?: string) => {
-    if (imageName) return `/${imageName}`;
-    if (fallback) return fallback;
-    return null;
-  };
-
-  // Fetch latest articles by timestamp field (created_at or updated_at)
-  const fetchLatest = async (
-    primaryField: 'created_at' | 'updated_at',
-    secondaryField: 'created_at' | 'updated_at' | null
-  ) => {
-    // Try with primary field first
-    const { data, error } = await supa
-      .from('policies')
-      .select(POLICY_SELECT)
-      .or('status.eq.approved,status.eq.Approved,status.is.null,status.eq.')
-      .not(primaryField, 'is', null)
-      .order(primaryField, { ascending: false })
-      .limit(10);
-
-    if (!error && data && data.length > 0) {
-      return data as Page[];
-    }
-
-    // Fallback: try without the null filter in case column exists but has nulls
-    const { data: fallbackData, error: fallbackError } = await supa
-      .from('policies')
-      .select(POLICY_SELECT)
-      .or('status.eq.approved,status.eq.Approved,status.is.null,status.eq.')
-      .order(primaryField, { ascending: false })
-      .limit(10);
-
-    if (!fallbackError && fallbackData && fallbackData.length > 0) {
-      return fallbackData as Page[];
-    }
-
-    // Try fallback select (without timestamp columns) and use secondary field
-    if (secondaryField) {
-      const { data: secondaryData, error: secondaryError } = await supa
-        .from('policies')
-        .select(POLICY_SELECT_FALLBACK)
-        .or('status.eq.approved,status.eq.Approved,status.is.null,status.eq.')
-        .order(secondaryField, { ascending: false })
-        .limit(10);
-
-      if (!secondaryError && secondaryData && secondaryData.length > 0) {
-        return secondaryData as Page[];
-      }
-    }
-
-    return [];
-  };
+  const categories: Category[] = sections.map((sec) => ({
+    key: sec.key,
+    name: sec.name,
+    icon: (sec.icon || 'book') as string,
+    imageName: sec.image_name || null,
+    pages: topLevelPages.filter((p) => p.section_key === sec.key),
+  }));
 
   return (
     <div className="min-h-screen bg-white">
@@ -262,7 +160,7 @@ export default function HomePage() {
         <nav className="max-w-[1400px] mx-auto px-8 py-6 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <svg className="h-8" viewBox="0 0 1860 612" xmlns="http://www.w3.org/2000/svg">
-              <path d="m1404.7,133.12l63.12,345.76h-100.16l-25.07-198.92-54.78,198.92h-89.89l-54.78-198.92-25.07,198.92h-100.15l63.12-345.76h105.96l55.88,203.16,55.88-203.16h105.96Zm-476.91,0l-81.54,233.33-81.54-233.33h-103.74l130.59,345.76h109.39l130.59-345.76h-103.74Zm685.34,257.25V133.12h-95.82v345.76h237.67l33.43-88.52h-175.27Zm-1051.13,123.31v48.33h-48.33l-207.67-207.67-207.67,207.67h-48.33v-48.33s207.67-207.67,207.67-207.67L50,98.33v-48.33s48.33,0,48.33,0l207.67,207.67,207.67-207.67h48.33v48.33l-207.67,207.67s207.67,207.67,207.67,207.67ZM356.77,50l-50.77,50.77-50.77-50.77h-87.33l138.09,138.09L444.09,50h-87.33Zm87.33,512l-138.09-138.09-138.09,138.09h87.33l50.77-50.77,50.77,50.77h87.33Zm117.91-205.23l-50.77-50.77,50.77-50.77v-87.33l-138.09,138.09,138.09,138.09v-87.33ZM50,444.09l138.09-138.09L50,167.91v87.33l50.77,50.77-50.77,50.77v87.33Z" fill="#1a1a1a"/>
+              <path d="m1404.7,133.12l63.12,345.76h-100.16l-25.07-198.92-54.78,198.92h-89.89l-54.78-198.92-25.07,198.92h-100.15l63.12-345.76h105.96l55.88,203.16,55.88-203.16h105.96Zm-476.91,0l-81.54,233.33-81.54-233.33h-103.74l130.59,345.76h109.39l130.59-345.76h-103.74Zm685.34,257.25V133.12h-95.82v345.76h237.67l33.43-88.52h-175.27Zm-1051.13,123.31v48.33h-48.33l-207.67-207.67-207.67,207.67h-48.33v-48.33s207.67-207.67,207.67-207.67L50,98.33v-48.33s48.33,0,48.33,0l207.67,207.67,207.67-207.67h48.33v48.33l-207.67,207.67s207.67,207.67,207.67,207.67ZM356.77,50l-50.77,50.77-50.77-50.77h-87.33l138.09,138.09L444.09,50h-87.33Zm87.33,512l-138.09-138.09-138.09,138.09h87.33l50.77-50.77,50.77,50.77h87.33Zm117.91-205.23l-50.77-50.77,50.77-50.77v-87.33l-138.09,138.09,138.09,138.09v-87.33ZM50,444.09l138.09-138.09L50,167.91v87.33l50.77,50.77-50.77,50.77v87.33Z" fill="#1a1a1a" />
             </svg>
           </div>
           <ul className="hidden md:flex gap-10 list-none">
@@ -287,115 +185,22 @@ export default function HomePage() {
 
       {/* Feature Cards - Elevated above hero */}
       <section className="max-w-[1400px] mx-auto -mt-16 px-8 pb-16 relative z-10">
-        {/* Loading State */}
-        {isLoading && (
-          <div className="text-center py-16">
-            <div className="flex justify-center space-x-2 mb-4">
-              <div className="w-3 h-3 bg-[#667eea] rounded-full animate-bounce"></div>
-              <div className="w-3 h-3 bg-[#667eea] rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-              <div className="w-3 h-3 bg-[#667eea] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-            </div>
-            <p className="text-gray-600 text-sm">Loading content...</p>
-          </div>
-        )}
-
-        {/* Feature Cards Grid */}
-        {!isLoading && categories.length > 0 && (
+        {categories.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {categories.map((category, catIndex) => {
-              const categoryImage = getSectionImageSrc(category.imageName, categoryImages[category.name]);
-              const headingImage = getSectionImageSrc(category.imageName, categoryImages[category.name]);
-              return (
-              <div
+            {categories.map((category, catIndex) => (
+              <FeatureCard
                 key={category.key}
-                className="feature-card"
-                role={getSectionLandingPath(category.key) ? 'button' : undefined}
-                tabIndex={getSectionLandingPath(category.key) ? 0 : -1}
-                onClick={handleSectionClick(category.key)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleSectionClick(category.key)(e as unknown as React.MouseEvent);
-                  }
-                }}
-              >
-                <div
-                  className="w-full h-[200px] relative flex items-center justify-center overflow-hidden"
-                  style={categoryImage ? {} : { background: gradients[catIndex % gradients.length] }}
-                >
-                  {categoryImage ? (
-                    <Image
-                      src={categoryImage}
-                      alt={category.name}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <>
-                      <svg className="absolute w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg">
-                        <defs>
-                          <pattern id={`pattern-${catIndex}`} x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-                            <circle cx="20" cy="20" r="2" fill="white"/>
-                          </pattern>
-                        </defs>
-                        <rect width="100%" height="100%" fill={`url(#pattern-${catIndex})`}/>
-                      </svg>
-                      <div className="relative z-10 text-white text-5xl">
-                        {iconMap[category.icon]}
-                      </div>
-                    </>
-                  )}
-                </div>
-                <div className="p-8">
-                  <div className="flex items-center gap-3 mb-3">
-                    {headingImage ? (
-                      <div className="relative w-11 h-11 rounded-lg overflow-hidden bg-gray-100 shadow-sm">
-                        <Image
-                          src={headingImage}
-                          alt={`${category.name} section`}
-                          fill
-                          className="object-cover"
-                          sizes="44px"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-11 h-11 rounded-lg flex items-center justify-center bg-[#eef0ff] text-[#667eea]">
-                        {iconMap[category.icon]}
-                      </div>
-                    )}
-                    <h3 className="text-2xl font-semibold text-[#1a1a1a]">{category.name}</h3>
-                  </div>
-                  <p className="text-[#666] text-base leading-relaxed mb-4">
-                    {totalArticlesInSection(category.key) > 0
-                      ? `${totalArticlesInSection(category.key)} article${totalArticlesInSection(category.key) !== 1 ? 's' : ''} available`
-                      : 'No articles yet'
-                    }
-                  </p>
-                    {totalArticlesInSection(category.key) > 0 && (
-                    <div className="space-y-2">
-                      {getSectionPages(category.key).slice(0, 3).map((page) => (
-                        <Link
-                          key={page.slug}
-                          href={buildPathFromSlug(page.slug) || `/p/${page.slug}`}
-                          className="block text-sm text-[#667eea] hover:text-[#764ba2] transition-colors"
-                        >
-                          {page.title}
-                        </Link>
-                      ))}
-                      {totalArticlesInSection(category.key) > getSectionPages(category.key).slice(0, 3).length && (
-                        <span className="feature-tag mt-2">+{totalArticlesInSection(category.key) - getSectionPages(category.key).slice(0, 3).length} more</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-              );
-            })}
+                category={category}
+                index={catIndex}
+                landingPath={getSectionLandingPath(category.key)}
+                totalArticles={totalArticlesInSection(category.key)}
+                sectionPages={getSectionPages(category.key)}
+                buildPathFromSlug={buildPathFromSlug}
+              />
+            ))}
           </div>
-        )}
-
-        {/* Empty State */}
-        {!isLoading && categories.length === 0 && topLevelPages.length === 0 && latestAdded.length === 0 && latestUpdated.length === 0 && (
+        ) : (
+          /* Empty State */
           <div className="text-center py-16 bg-gray-50 rounded-xl">
             <div className="text-6xl mb-4">📚</div>
             <h3 className="text-xl font-semibold text-[#1a1a1a] mb-2">
@@ -416,70 +221,68 @@ export default function HomePage() {
       </section>
 
       {/* Latest activity */}
-      {!isLoading && (
-        <section className="max-w-[1400px] mx-auto px-8 py-24">
-          <div className="section-header">
-            <h2>Latest Updates</h2>
-            <p>New and recently changed articles</p>
-          </div>
-          <div className="grid gap-8 md:grid-cols-2">
-            <div className="news-card">
-              <div className="p-8">
-                <h3 className="text-xl font-semibold text-[#1a1a1a] mb-4">Latest Added</h3>
-                {latestAdded.length > 0 ? (
-                  <ul className="space-y-3">
-                    {latestAdded.map((page) => {
-                      const path = buildPathFromSlug(page.slug) || `/p/${page.slug}`;
-                      return (
-                        <li key={page.slug}>
-                          <Link
-                            href={path}
-                            className="text-[#1a1a1a] hover:text-[#667eea] font-medium transition-colors"
-                          >
-                            {page.title}
-                          </Link>
-                          {page.summary && (
-                            <p className="text-sm text-[#666] mt-1 line-clamp-2">{page.summary}</p>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-[#999] italic">No recent additions</p>
-                )}
-              </div>
-            </div>
-            <div className="news-card">
-              <div className="p-8">
-                <h3 className="text-xl font-semibold text-[#1a1a1a] mb-4">Latest Updated</h3>
-                {latestUpdated.length > 0 ? (
-                  <ul className="space-y-3">
-                    {latestUpdated.map((page) => {
-                      const path = buildPathFromSlug(page.slug) || `/p/${page.slug}`;
-                      return (
-                        <li key={page.slug}>
-                          <Link
-                            href={path}
-                            className="text-[#1a1a1a] hover:text-[#667eea] font-medium transition-colors"
-                          >
-                            {page.title}
-                          </Link>
-                          {page.summary && (
-                            <p className="text-sm text-[#666] mt-1 line-clamp-2">{page.summary}</p>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-[#999] italic">No recent updates</p>
-                )}
-              </div>
+      <section className="max-w-[1400px] mx-auto px-8 py-24">
+        <div className="section-header">
+          <h2>Latest Updates</h2>
+          <p>New and recently changed articles</p>
+        </div>
+        <div className="grid gap-8 md:grid-cols-2">
+          <div className="news-card">
+            <div className="p-8">
+              <h3 className="text-xl font-semibold text-[#1a1a1a] mb-4">Latest Added</h3>
+              {latestAdded.length > 0 ? (
+                <ul className="space-y-3">
+                  {latestAdded.map((page) => {
+                    const path = buildPathFromSlug(page.slug) || `/p/${page.slug}`;
+                    return (
+                      <li key={page.slug}>
+                        <Link
+                          href={path}
+                          className="text-[#1a1a1a] hover:text-[#667eea] font-medium transition-colors"
+                        >
+                          {page.title}
+                        </Link>
+                        {page.summary && (
+                          <p className="text-sm text-[#666] mt-1 line-clamp-2">{page.summary}</p>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="text-sm text-[#999] italic">No recent additions</p>
+              )}
             </div>
           </div>
-        </section>
-      )}
+          <div className="news-card">
+            <div className="p-8">
+              <h3 className="text-xl font-semibold text-[#1a1a1a] mb-4">Latest Updated</h3>
+              {latestUpdated.length > 0 ? (
+                <ul className="space-y-3">
+                  {latestUpdated.map((page) => {
+                    const path = buildPathFromSlug(page.slug) || `/p/${page.slug}`;
+                    return (
+                      <li key={page.slug}>
+                        <Link
+                          href={path}
+                          className="text-[#1a1a1a] hover:text-[#667eea] font-medium transition-colors"
+                        >
+                          {page.title}
+                        </Link>
+                        {page.summary && (
+                          <p className="text-sm text-[#666] mt-1 line-clamp-2">{page.summary}</p>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="text-sm text-[#999] italic">No recent updates</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* People Section */}
       {people.length > 0 && (
