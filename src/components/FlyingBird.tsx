@@ -8,28 +8,28 @@ export default function FlyingBird() {
       <style jsx>{`
         @keyframes flyAcross {
           0% {
-            transform: translate(-10vw, 20vh) scale(0.6) rotate(15deg);
+            transform: translate(-10vw, 15vh) scale(0.8) rotate(10deg);
           }
           25% {
-            transform: translate(30vw, 40vh) scale(0.7) rotate(5deg);
+            transform: translate(30vw, 30vh) scale(0.9) rotate(5deg);
           }
           50% {
-            transform: translate(60vw, 25vh) scale(0.8) rotate(-5deg);
+            transform: translate(60vw, 20vh) scale(1) rotate(-5deg);
+          }
+          75% {
+            transform: translate(85vw, 35vh) scale(0.9) rotate(5deg);
           }
           100% {
-            transform: translate(110vw, 10vh) scale(0.6) rotate(-15deg);
+            transform: translate(110vw, 10vh) scale(0.8) rotate(-10deg);
           }
         }
 
         @keyframes wingFlap {
-          0% {
-            d: path('M10 50 Q 50 20, 90 50 L 50 60 Z'); /* Wings UP */
+          0%, 100% {
+            d: path('M2,18 C10,-5 30,-5 38,18 L20,28 L2,18 Z'); /* Wings UP */
           }
           50% {
-             d: path('M10 50 Q 50 80, 90 50 L 50 60 Z'); /* Wings DOWN */
-          }
-          100% {
-            d: path('M10 50 Q 50 20, 90 50 L 50 60 Z'); /* Wings UP */
+            d: path('M2,18 C10,35 30,35 38,18 L20,28 L2,18 Z'); /* Wings DOWN */
           }
         }
 
@@ -37,34 +37,33 @@ export default function FlyingBird() {
           position: absolute;
           top: 0;
           left: 0;
-          animation: flyAcross 20s linear infinite;
+          animation: flyAcross 18s linear infinite;
           will-change: transform;
-          filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+          filter: drop-shadow(0 4px 4px rgba(0,0,0,0.2));
+          z-index: 100;
         }
 
-        .bird-body {
-          animation: wingFlap 0.8s ease-in-out infinite;
-          fill: #667eea;
+        .bird-shape {
+          animation: wingFlap 0.4s ease-in-out infinite alternate;
+          fill: #4a5568; /* Darker grey-blue for visibility */
         }
       `}</style>
       <div className="bird-container">
         <svg
-          width="100"
-          height="100"
-          viewBox="0 0 100 100"
+          width="60"
+          height="60"
+          viewBox="0 0 40 40"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
           {/* 
-            Simple bird silhouette:
-            Wings are controlled by the path animation.
-            The path draws from left wing tip (10,50) to right wing tip (90,50)
-            with a control point in the middle that moves up/down.
-            The body is the bottom part (L 50 60 Z).
+            Distinct Bird Silhouette:
+            A central body with wings that flap via path morphing.
+            The path defines the wings and upper body.
           */}
           <path
-            className="bird-body"
-            d="M10 50 Q 50 20, 90 50 L 50 60 Z"
+            className="bird-shape"
+            d="M2,18 C10,-5 30,-5 38,18 L20,28 L2,18 Z"
           />
         </svg>
       </div>
