@@ -187,17 +187,23 @@ export default async function HomePage() {
       <section className="max-w-[1400px] mx-auto -mt-16 px-8 pb-16 relative z-10">
         {categories.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {categories.map((category, catIndex) => (
-              <FeatureCard
-                key={category.key}
-                category={category}
-                index={catIndex}
-                landingPath={getSectionLandingPath(category.key)}
-                totalArticles={totalArticlesInSection(category.key)}
-                sectionPages={getSectionPages(category.key)}
-                buildPathFromSlug={buildPathFromSlug}
-              />
-            ))}
+            {categories.map((category, catIndex) => {
+              const sectionPages = getSectionPages(category.key).map(p => ({
+                ...p,
+                href: buildPathFromSlug(p.slug) || `/p/${p.slug}`
+              }));
+
+              return (
+                <FeatureCard
+                  key={category.key}
+                  category={category}
+                  index={catIndex}
+                  landingPath={getSectionLandingPath(category.key)}
+                  totalArticles={totalArticlesInSection(category.key)}
+                  sectionPages={sectionPages}
+                />
+              )
+            })}
           </div>
         ) : (
           /* Empty State */

@@ -12,8 +12,7 @@ interface FeatureCardProps {
     index: number;
     landingPath: string | null;
     totalArticles: number;
-    sectionPages: Page[];
-    buildPathFromSlug: (slug: string) => string | null;
+    sectionPages: (Page & { href: string })[];
 }
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -41,7 +40,6 @@ export default function FeatureCard({
     landingPath,
     totalArticles,
     sectionPages,
-    buildPathFromSlug,
 }: FeatureCardProps) {
     const router = useRouter();
 
@@ -131,7 +129,7 @@ export default function FeatureCard({
                         {sectionPages.slice(0, 3).map((page) => (
                             <Link
                                 key={page.slug}
-                                href={buildPathFromSlug(page.slug) || `/p/${page.slug}`}
+                                href={page.href}
                                 className="block text-sm text-[#667eea] hover:text-[#764ba2] transition-colors"
                             >
                                 {page.title}
