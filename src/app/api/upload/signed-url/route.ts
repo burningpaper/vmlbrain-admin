@@ -9,7 +9,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { filename, contentType } = await req.json();
+    const { filename } = await req.json();
 
     if (!filename) {
       return NextResponse.json({ error: 'Filename required' }, { status: 400 });
@@ -40,8 +40,9 @@ export async function POST(req: Request) {
       path: data.path,
       publicUrl,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Signed URL error:', error);
-    return NextResponse.json({ error: error.message || 'Failed to create signed URL' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Failed to create signed URL';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

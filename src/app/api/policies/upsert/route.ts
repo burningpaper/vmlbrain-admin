@@ -49,8 +49,9 @@ export async function POST(req: Request) {
       box_folder_id || null,
       box_file_ids || null
     ]);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 
   // Auto-generate embeddings in the background (don't wait for it)

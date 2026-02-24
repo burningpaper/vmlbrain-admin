@@ -12,19 +12,19 @@ const pool = new Pool({
 export const db = pool;
 
 // Helper to execute a single query
-export async function query<T = any>(text: string, params?: any[]): Promise<T[]> {
+export async function query<T = unknown>(text: string, params?: unknown[]): Promise<T[]> {
   const result = await pool.query(text, params);
   return result.rows;
 }
 
 // Helper to execute a single query and return first row
-export async function queryOne<T = any>(text: string, params?: any[]): Promise<T | null> {
+export async function queryOne<T = unknown>(text: string, params?: unknown[]): Promise<T | null> {
   const result = await pool.query(text, params);
   return result.rows[0] || null;
 }
 
 // Helper to execute a query with a count
-export async function queryCount(text: string, params?: any[]): Promise<number> {
+export async function queryCount(text: string, params?: unknown[]): Promise<number> {
   const result = await pool.query(text, params);
   return parseInt(result.rows[0]?.count || '0', 10);
 }

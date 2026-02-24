@@ -25,7 +25,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, deleted: slug });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

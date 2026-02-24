@@ -65,8 +65,9 @@ export async function uploadLargeFile(
       xhr.setRequestHeader('Content-Type', file.type);
       xhr.send(file);
     });
-  } catch (error: any) {
-    return { url: '', error: error.message || 'Upload failed' };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Upload failed';
+    return { url: '', error: message };
   }
 }
 
@@ -105,7 +106,8 @@ export async function uploadFile(
 
     const { url } = await res.json();
     return { url };
-  } catch (error: any) {
-    return { url: '', error: error.message || 'Upload failed' };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Upload failed';
+    return { url: '', error: message };
   }
 }
