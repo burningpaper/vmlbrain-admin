@@ -14,16 +14,14 @@ import OrderedList from '@tiptap/extension-ordered-list';
 import ListItem from '@tiptap/extension-list-item';
 import HardBreak from '@tiptap/extension-hard-break';
 import { useCallback, useEffect, useState } from 'react';
+import { uploadFile as smartUpload } from '@/lib/uploadLargeFile';
 
-
-async function uploadFile(file: File, token: string): Promise<string> {
+// Wrapper for the smart upload function that returns just the URL or throws
+async function uploadFile(file: File, token: string, onProgress?: (percent: number) => void): Promise<string> {
   if (!token) throw new Error('Missing edit token');
-  const fd = new FormData();
-  fd.append('file', file);
-  const res = await fetch('/api/upload', { method: 'POST', headers: { 'x-edit-token': token }, body: fd });
-  if (!res.ok) throw new Error(await res.text());
-  const { url } = await res.json();
-  return url;
+  const result = await smartUpload(file, token, onProgress);
+  if (result.error) throw new Error(result.error);
+  return result.url;
 }
 
 export default function PolicyEditor({
@@ -202,12 +200,33 @@ export default function PolicyEditor({
         alert('Please enter your EDIT_TOKEN in the Admin panel to upload videos.');
         return;
       }
+
+      // Show progress for large files
+      const isLargeFile = file.size > 4 * 1024 * 1024; // 4MB
+      let progressDiv: HTMLDivElement | null = null;
+
+      if (isLargeFile) {
+        progressDiv = document.createElement('div');
+        progressDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a1a;color:#fff;padding:24px 32px;border-radius:12px;z-index:9999;text-align:center;min-width:200px;';
+        progressDiv.innerHTML = '<div style="margin-bottom:8px;font-weight:600;">Uploading video...</div><div id="upload-progress">0%</div>';
+        document.body.appendChild(progressDiv);
+      }
+
       try {
-        const url = await uploadFile(file, token);
+        const url = await uploadFile(file, token, (percent) => {
+          if (progressDiv) {
+            const progressEl = progressDiv.querySelector('#upload-progress');
+            if (progressEl) progressEl.textContent = `${percent}%`;
+          }
+        });
         const safe = url.replace(/"/g, '"');
         editor?.chain().focus().insertContent(`<p><a href="${safe}">${safe}</a></p>`).run();
       } catch (error) {
         alert('Video upload failed: ' + error);
+      } finally {
+        if (progressDiv) {
+          document.body.removeChild(progressDiv);
+        }
       }
     };
     input.click();

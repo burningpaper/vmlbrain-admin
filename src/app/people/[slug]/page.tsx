@@ -1,4 +1,4 @@
-import { supa } from '@/lib/supabase';
+import { db } from '@/lib/db';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -26,27 +26,29 @@ export default async function ProfilePage({ params }: { params: Promise<{ slug: 
   if (!slug) notFound();
 
   // Get the profile
-    const { data, error } = await supa
-      .from('profiles')
-      .select('*')
-      .eq('slug', slug)
-      .eq('status', 'approved')
-      .single();
+  const profileResult = await db.query(
+    'SELECT * FROM profiles WHERE slug = $1 AND status = $2',
+    [slug, 'approved']
+  );
 
-  if (error || !data) notFound();
-  const profile = data as ProfileRow;
+  if (!profileResult.rows || profileResult.rows.length === 0) notFound();
+  const profile = profileResult.rows[0] as ProfileRow;
 
   // Load all approved policy pages for right-hand navigation (reuse existing navigation)
-  const { data: allPages } = await supa
-    .from('policies')
-    .select('slug, title, parent_slug, section_key')
-    .eq('status', 'approved')
-    .order('title');
+  const allPagesResult = await db.query(`
+    SELECT slug, title, parent_slug, section_key
+    FROM policies
+    WHERE status = 'approved'
+    ORDER BY title
+  `);
+  const allPages = allPagesResult.rows;
 
-  const { data: sections } = await supa
-    .from('sections')
-    .select('key, name, icon, sort_order')
-    .order('sort_order');
+  const sectionsResult = await db.query(`
+    SELECT key, name, icon, sort_order
+    FROM sections
+    ORDER BY sort_order
+  `);
+  const sections = sectionsResult.rows;
 
   const fullName = `${profile.first_name} ${profile.last_name}`.trim();
 

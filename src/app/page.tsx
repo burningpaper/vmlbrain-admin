@@ -1,122 +1,70 @@
-import { supa } from '@/lib/supabase';
+import { db } from '@/lib/db';
 import Link from 'next/link';
 import Image from 'next/image';
 import FeatureCard from '@/components/FeatureCard';
 import FlyingBird from '@/components/FlyingBird';
 import { Page, SectionRow, Person, Category } from '@/types';
 
-const POLICY_SELECT = 'slug, title, summary, parent_slug, section_key, created_at, updated_at';
-const POLICY_SELECT_FALLBACK = 'slug, title, summary, parent_slug, section_key';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function fetchPolicies(builder: (cols: string) => any) {
-  const primary = await builder(POLICY_SELECT);
-  if (!primary.error) return (primary.data as Page[]) || [];
-  const fallback = await builder(POLICY_SELECT_FALLBACK);
-  return (fallback.data as Page[]) || [];
-}
-
-async function fetchLatest(
-  primaryField: 'created_at' | 'updated_at',
-  secondaryField: 'created_at' | 'updated_at' | null
-) {
-  // Try with primary field first
-  const { data, error } = await supa
-    .from('policies')
-    .select(POLICY_SELECT)
-    .or('status.eq.approved,status.eq.Approved,status.is.null,status.eq.')
-    .not(primaryField, 'is', null)
-    .order(primaryField, { ascending: false })
-    .limit(10);
-
-  if (!error && data && data.length > 0) {
-    return data as Page[];
+async function fetchLatest(orderBy: 'created_at' | 'updated_at'): Promise<Page[]> {
+  try {
+    const result = await db.query(`
+      SELECT slug, title, summary, parent_slug, section_key, created_at, updated_at
+      FROM policies
+      WHERE (status = 'approved' OR status = 'Approved' OR status IS NULL OR status = '')
+        AND ${orderBy} IS NOT NULL
+      ORDER BY ${orderBy} DESC
+      LIMIT 10
+    `);
+    return result.rows as Page[];
+  } catch (error) {
+    console.error(`Error fetching latest by ${orderBy}:`, error);
+    return [];
   }
-
-  // Fallback: try without the null filter
-  const { data: fallbackData, error: fallbackError } = await supa
-    .from('policies')
-    .select(POLICY_SELECT)
-    .or('status.eq.approved,status.eq.Approved,status.is.null,status.eq.')
-    .order(primaryField, { ascending: false })
-    .limit(10);
-
-  if (!fallbackError && fallbackData && fallbackData.length > 0) {
-    return fallbackData as Page[];
-  }
-
-  // Try fallback select
-  if (secondaryField) {
-    const { data: secondaryData, error: secondaryError } = await supa
-      .from('policies')
-      .select(POLICY_SELECT_FALLBACK)
-      .or('status.eq.approved,status.eq.Approved,status.is.null,status.eq.')
-      .order(secondaryField, { ascending: false })
-      .limit(10);
-
-    if (!secondaryError && secondaryData && secondaryData.length > 0) {
-      return secondaryData as Page[];
-    }
-  }
-
-  return [];
 }
 
 export default async function HomePage() {
   // Parallel data fetching
-  const [topData, allData, sectionsResult, peopleResult, latestAdded, latestUpdated] = await Promise.all([
+  const [topLevelPages, allPages, sections, people, latestAdded, latestUpdated] = await Promise.all([
     // Get all top-level pages
-    fetchPolicies((cols) =>
-      supa
-        .from('policies')
-        .select(cols)
-        .or('parent_slug.is.null,parent_slug.eq.')
-        .order('title')
-    ),
+    db.query(`
+      SELECT slug, title, summary, parent_slug, section_key, created_at, updated_at
+      FROM policies
+      WHERE parent_slug IS NULL OR parent_slug = ''
+      ORDER BY title
+    `).then(result => result.rows as Page[]).catch(() => [] as Page[]),
+
     // Get all pages for children lookup
-    fetchPolicies((cols) =>
-      supa
-        .from('policies')
-        .select(cols)
-        .order('title')
-    ),
+    db.query(`
+      SELECT slug, title, summary, parent_slug, section_key, created_at, updated_at
+      FROM policies
+      ORDER BY title
+    `).then(result => result.rows as Page[]).catch(() => [] as Page[]),
+
     // Get sections
-    supa
-      .from('sections')
-      .select('key, name, icon, image_name, sort_order')
-      .order('sort_order'),
+    db.query(`
+      SELECT key, name, icon, image_name, sort_order
+      FROM sections
+      ORDER BY sort_order
+    `).then(result => result.rows as SectionRow[]).catch(() => [] as SectionRow[]),
+
     // Get people
-    supa
-      .from('profiles')
-      .select('slug, first_name, last_name, job_title, photo_url')
-      .order('last_name')
-      .limit(6),
+    db.query(`
+      SELECT slug, first_name, last_name, job_title, photo_url
+      FROM profiles
+      ORDER BY last_name
+      LIMIT 6
+    `).then(result => result.rows as Person[]).catch(() => [] as Person[]),
+
     // Latest added
-    fetchLatest('created_at', 'updated_at'),
+    fetchLatest('created_at'),
+
     // Latest updated
-    fetchLatest('updated_at', 'created_at'),
+    fetchLatest('updated_at'),
   ]);
-
-  const topLevelPages = topData;
-  const allPages = allData;
-  const people = (peopleResult.data as Person[]) || [];
-
-  // Handle sections fallback
-  let sections = (sectionsResult.data as SectionRow[]) || [];
-  if (sectionsResult.error) {
-    const { data: fallbackSections } = await supa
-      .from('sections')
-      .select('key, name, icon, sort_order')
-      .order('sort_order');
-    sections = (fallbackSections as SectionRow[])?.map((sec) => ({
-      ...sec,
-      image_name: null,
-    })) || [];
-  }
 
   // Helper functions
   const pageMap = new Map<string, Page>();
-  allPages.forEach((p) => pageMap.set(p.slug, p));
+  allPages.forEach((p: Page) => pageMap.set(p.slug, p));
 
   const buildPathFromSlug = (slug: string): string | null => {
     const pathParts: string[] = [];
@@ -131,7 +79,7 @@ export default async function HomePage() {
   };
 
   const getSectionPages = (sectionKey: string) => {
-    return allPages.filter((p) => (p.section_key || '') === sectionKey);
+    return allPages.filter((p: Page) => (p.section_key || '') === sectionKey);
   };
 
   const totalArticlesInSection = (sectionKey: string): number => {
@@ -139,9 +87,9 @@ export default async function HomePage() {
   };
 
   const getSectionLandingPath = (sectionKey: string): string | null => {
-    const topLevel = topLevelPages.find((p) => p.section_key === sectionKey);
+    const topLevel = topLevelPages.find((p: Page) => p.section_key === sectionKey);
     if (topLevel) return `/p/${topLevel.slug}`;
-    const anyPage = allPages.find((p) => p.section_key === sectionKey);
+    const anyPage = allPages.find((p: Page) => p.section_key === sectionKey);
     if (anyPage) return buildPathFromSlug(anyPage.slug);
     return null;
   };
@@ -151,7 +99,7 @@ export default async function HomePage() {
     name: sec.name,
     icon: (sec.icon || 'book') as string,
     imageName: sec.image_name || null,
-    pages: topLevelPages.filter((p) => p.section_key === sec.key),
+    pages: topLevelPages.filter((p: Page) => p.section_key === sec.key),
   }));
 
   return (
@@ -190,7 +138,7 @@ export default async function HomePage() {
         {categories.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {categories.map((category, catIndex) => {
-              const sectionPages = getSectionPages(category.key).map(p => ({
+              const sectionPages = getSectionPages(category.key).map((p: Page) => ({
                 ...p,
                 href: buildPathFromSlug(p.slug) || `/p/${p.slug}`
               }));
@@ -240,7 +188,7 @@ export default async function HomePage() {
               <h3 className="text-xl font-semibold text-[#1a1a1a] mb-4">Latest Added</h3>
               {latestAdded.length > 0 ? (
                 <ul className="space-y-3">
-                  {latestAdded.map((page) => {
+                  {latestAdded.map((page: Page) => {
                     const path = buildPathFromSlug(page.slug) || `/p/${page.slug}`;
                     return (
                       <li key={page.slug}>
@@ -267,7 +215,7 @@ export default async function HomePage() {
               <h3 className="text-xl font-semibold text-[#1a1a1a] mb-4">Latest Updated</h3>
               {latestUpdated.length > 0 ? (
                 <ul className="space-y-3">
-                  {latestUpdated.map((page) => {
+                  {latestUpdated.map((page: Page) => {
                     const path = buildPathFromSlug(page.slug) || `/p/${page.slug}`;
                     return (
                       <li key={page.slug}>

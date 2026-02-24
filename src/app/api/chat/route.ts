@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { supaAdmin } from '@/lib/supabaseAdmin';
+import { db } from '@/lib/db';
 import OpenAI from 'openai';
-
 
 type PolicyMatch = { policy_slug: string; content: string; chunk_index?: number; id?: number; similarity?: number };
 type PolicyMeta = { slug: string; title: string };
@@ -35,28 +34,21 @@ export async function POST(req: Request) {
     const questionEmbedding = embeddingResponse.data[0].embedding;
 
     // Search for similar chunks in both policies and profiles
-    const { data: pMatches } = await supaAdmin
-      .rpc('match_profile_embeddings', {
-        query_embedding: questionEmbedding,
-        match_threshold: 0.35,
-        match_count: 10,
-      });
+    const pMatchesResult = await db.query<ProfileMatch>(
+      `SELECT * FROM match_profile_embeddings($1::vector(1536), $2, $3)`,
+      [`[${questionEmbedding.join(',')}]`, 0.35, 10]
+    );
+    const pMatches = pMatchesResult.rows;
 
-    // Search for similar policy chunks using the match_policy_embeddings function
-    const { data: matches, error: searchError } = await supaAdmin
-      .rpc('match_policy_embeddings', {
-        query_embedding: questionEmbedding,
-        match_threshold: 0.35,
-        match_count: 10,
-      });
+    // Search for similar policy chunks
+    const matchesResult = await db.query<PolicyMatch>(
+      `SELECT * FROM match_policy_embeddings($1::vector(1536), $2, $3)`,
+      [`[${questionEmbedding.join(',')}]`, 0.35, 10]
+    );
+    const matches = matchesResult.rows;
 
-    if (searchError) {
-      console.error('Search error:', searchError);
-      return NextResponse.json({ error: 'Search failed' }, { status: 500 });
-    }
-
-    if ((!matches || matches.length === 0) && (!pMatches || pMatches.length === 0)) {
-      // Fallback: keyword search over both policies and profiles if vector search returns nothing
+    if (matches.length === 0 && pMatches.length === 0) {
+      // Fallback: keyword search
       const tokens = (message.toLowerCase().match(/[a-z0-9]+/g) || []) as string[];
       const keywords = Array.from(new Set(tokens.filter(w => w.length >= 3))).slice(0, 5);
       const clean = (s: string) => (s || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -67,20 +59,9 @@ export async function POST(req: Request) {
         const lc = message.toLowerCase();
         if (lc.includes('work hour') || (lc.includes('work') && lc.includes('hour'))) {
           synonyms.push(
-            'work hours',
-            'working hours',
-            'business hours',
-            'hours of work',
-            'office hours',
-            'core hours',
-            'operating hours',
-            'standard hours',
-            'working time',
-            'work schedule',
-            'start time',
-            'end time',
-            '9-5',
-            '9 to 5'
+            'work hours', 'working hours', 'business hours', 'hours of work',
+            'office hours', 'core hours', 'operating hours', 'standard hours',
+            'working time', 'work schedule', 'start time', 'end time', '9-5', '9 to 5'
           );
         }
         const terms = Array.from(new Set([...baseTerms, ...synonyms]));
@@ -89,18 +70,17 @@ export async function POST(req: Request) {
         let policyContext = '';
         let primaryPolicy: { slug: string; title: string } | null = null;
         if (terms.length > 0) {
-          const pOr = terms.map(t => `title.ilike.%${t}%,summary.ilike.%${t}%,body_md.ilike.%${t}%`).join(',');
-          const { data: kwPolicies } = await supaAdmin
-            .from('policies')
-            .select('slug, title, summary, body_md')
-            .or(pOr)
-            .limit(3);
-          if (kwPolicies && kwPolicies.length > 0) {
-            const kps = (kwPolicies as KPolicy[] | null) || [];
-            policyContext = kps
-              .map((p: KPolicy) => `[From "${p.title}"]\n${clean(`${p.title}\n\n${p.summary || ''}\n\n${p.body_md || ''}`)}`)
+          const conditions = terms.map(() => '(title ILIKE $1 OR summary ILIKE $1 OR body_md ILIKE $1)').join(' OR ');
+          const kwPoliciesResult = await db.query<KPolicy>(
+            `SELECT slug, title, summary, body_md FROM policies WHERE ${conditions} LIMIT 3`,
+            terms.map(t => `%${t}%`)
+          );
+          const kwPolicies = kwPoliciesResult.rows;
+          if (kwPolicies.length > 0) {
+            policyContext = kwPolicies
+              .map((p) => `[From "${p.title}"]\n${clean(`${p.title}\n\n${p.summary || ''}\n\n${p.body_md || ''}`)}`)
               .join('\n\n');
-            primaryPolicy = { slug: kps[0].slug, title: kps[0].title };
+            primaryPolicy = { slug: kwPolicies[0].slug, title: kwPolicies[0].title };
           }
         }
 
@@ -108,23 +88,20 @@ export async function POST(req: Request) {
         let profileContext = '';
         let primaryProfile: { slug: string; title: string } | null = null;
         if (terms.length > 0) {
-          const profOr = terms
-            .map(t => `first_name.ilike.%${t}%,last_name.ilike.%${t}%,job_title.ilike.%${t}%,description_html.ilike.%${t}%`)
-            .join(',');
-          const { data: kwProfiles } = await supaAdmin
-            .from('profiles')
-            .select('slug, first_name, last_name, job_title, description_html')
-            .or(profOr)
-            .limit(3);
-          if (kwProfiles && kwProfiles.length > 0) {
-            const profs = kwProfiles as { slug: string; first_name: string; last_name: string; job_title: string; description_html: string | null }[];
-            profileContext = profs
-              .map((p) => {
+          const profConditions = terms.map(() => '(first_name ILIKE $1 OR last_name ILIKE $1 OR job_title ILIKE $1 OR description_html ILIKE $1)').join(' OR ');
+          const kwProfilesResult = await db.query<any>(
+            `SELECT slug, first_name, last_name, job_title, description_html FROM profiles WHERE ${profConditions} LIMIT 3`,
+            terms.map(t => `%${t}%`)
+          );
+          const kwProfiles = kwProfilesResult.rows;
+          if (kwProfiles.length > 0) {
+            profileContext = kwProfiles
+              .map((p: any) => {
                 const name = `${p.first_name} ${p.last_name}`.trim();
                 return `[From "${name} — ${p.job_title}"]\n${clean(p.description_html || '')}`;
               })
               .join('\n\n');
-            const t0 = profs[0];
+            const t0 = kwProfiles[0];
             primaryProfile = { slug: t0.slug, title: `${t0.first_name} ${t0.last_name}`.trim() };
           }
         }
@@ -137,9 +114,7 @@ export async function POST(req: Request) {
             messages: [
               {
                 role: 'system',
-                content: `You are a helpful assistant that answers questions about company policies and people profiles.
-                Use the provided context to answer questions accurately and concisely.
-                Always cite which page your information comes from.`,
+                content: `You are a helpful assistant that answers questions about company policies and people profiles. Use the provided context to answer questions accurately and concisely. Always cite which page your information comes from.`,
               },
               {
                 role: 'user',
@@ -167,8 +142,8 @@ export async function POST(req: Request) {
       });
     }
 
-    // Augment vector matches with keyword hits for recall
-    const augmentedMatches: PolicyMatch[] = (matches as PolicyMatch[]) || [];
+    // Augment vector matches with keyword hits
+    const augmentedMatches: PolicyMatch[] = [...matches];
     try {
       const tokens = (message.toLowerCase().match(/[a-z0-9]+/g) || []) as string[];
       const keywords = Array.from(new Set(tokens.filter((w: string) => w.length >= 3))).slice(0, 5);
@@ -176,40 +151,26 @@ export async function POST(req: Request) {
       const lc = message.toLowerCase();
       if (lc.includes('work hour') || (lc.includes('work') && lc.includes('hour'))) {
         synonyms.push(
-          'work hours',
-          'working hours',
-          'business hours',
-          'hours of work',
-          'office hours',
-          'core hours',
-          'operating hours',
-          'standard hours',
-          'working time',
-          'work schedule',
-          'start time',
-          'end time',
-          '9-5',
-          '9 to 5'
+          'work hours', 'working hours', 'business hours', 'hours of work',
+          'office hours', 'core hours', 'operating hours', 'standard hours',
+          'working time', 'work schedule', 'start time', 'end time', '9-5', '9 to 5'
         );
       }
       const terms = Array.from(new Set([...keywords, ...synonyms]));
       if (terms.length > 0) {
-        const orFilter = terms
-          .map((t) => `title.ilike.%${t}%,summary.ilike.%${t}%,body_md.ilike.%${t}%`)
-          .join(',');
-        const { data: kwPolicies } = await supaAdmin
-          .from('policies')
-          .select('slug, title, summary, body_md')
-          .or(orFilter)
-          .limit(5);
-        if (kwPolicies && kwPolicies.length > 0) {
+        const conditions = terms.map(() => '(title ILIKE $1 OR summary ILIKE $1 OR body_md ILIKE $1)').join(' OR ');
+        const kwPoliciesResult = await db.query<KPolicy>(
+          `SELECT slug, title, summary, body_md FROM policies WHERE ${conditions} LIMIT 5`,
+          terms.map(t => `%${t}%`)
+        );
+        const kwPolicies = kwPoliciesResult.rows;
+        if (kwPolicies.length > 0) {
           const clean = (s: string) => (s || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-          const kps2 = (kwPolicies as KPolicy[] | null) || [];
-          const kwMatches = kps2.map((p: KPolicy) => ({
+          const kwMatches = kwPolicies.map((p) => ({
             policy_slug: p.slug,
             content: clean(`${p.title}\n\n${p.summary || ''}\n\n${p.body_md || ''}`).slice(0, 1200),
           }));
-          const seen = new Set(augmentedMatches.map((m: PolicyMatch) => m.policy_slug));
+          const seen = new Set(augmentedMatches.map((m) => m.policy_slug));
           for (const km of kwMatches) {
             if (!seen.has(km.policy_slug)) {
               augmentedMatches.push(km);
@@ -222,45 +183,43 @@ export async function POST(req: Request) {
       console.error('KW augment error:', e);
     }
 
-    // Collect profile vector matches
-    const profileVectorMatches: ProfileMatch[] = ((pMatches as ProfileMatch[]) || []).map((m) => m);
+    const profileVectorMatches: ProfileMatch[] = [...pMatches];
 
     // Get unique policy titles
-    const uniquePolicySlugs = [...new Set(augmentedMatches.map((m: PolicyMatch) => m.policy_slug))];
-    const { data: policies } = await supaAdmin
-      .from('policies')
-      .select('slug, title')
-      .in('slug', uniquePolicySlugs);
+    const uniquePolicySlugs = [...new Set(augmentedMatches.map((m) => m.policy_slug))];
+    const policiesResult = await db.query<PolicyMeta>(
+      `SELECT slug, title FROM policies WHERE slug = ANY($1)`,
+      [uniquePolicySlugs]
+    );
+    const policyList = policiesResult.rows;
+    const policyTitles = new Map(policyList.map((p) => [p.slug, p.title]));
 
-    const policyList = (policies as PolicyMeta[] | null) || [];
-    const policyTitles = new Map(policyList.map((p: PolicyMeta) => [p.slug, p.title]));
-
-    // Get unique profile meta for titles
-    const uniqueProfileSlugs = [...new Set(profileVectorMatches.map((m: ProfileMatch) => m.profile_slug))];
+    // Get unique profile meta
+    const uniqueProfileSlugs = [...new Set(profileVectorMatches.map((m) => m.profile_slug))];
     let profMeta: ProfileMeta[] = [];
     if (uniqueProfileSlugs.length) {
-      const { data } = await supaAdmin
-        .from('profiles')
-        .select('slug, first_name, last_name, job_title')
-        .in('slug', uniqueProfileSlugs);
-      profMeta = (data as ProfileMeta[] | null) || [];
+      const profilesResult = await db.query<ProfileMeta>(
+        `SELECT slug, first_name, last_name, job_title FROM profiles WHERE slug = ANY($1)`,
+        [uniqueProfileSlugs]
+      );
+      profMeta = profilesResult.rows;
     }
 
     const profileList = profMeta;
     const profileTitles = new Map(
-      profileList.map((p: ProfileMeta) => [p.slug, `${p.first_name} ${p.last_name}`.trim() + (p.job_title ? ` — ${p.job_title}` : '')])
+      profileList.map((p) => [p.slug, `${p.first_name} ${p.last_name}`.trim() + (p.job_title ? ` — ${p.job_title}` : '')])
     );
 
-    // Build combined context (policies + profiles)
+    // Build combined context
     const policyContext = augmentedMatches
-      .map((match: PolicyMatch) => {
+      .map((match) => {
         const policyTitle = policyTitles.get(match.policy_slug) || match.policy_slug;
         return `[From "${policyTitle}"]\n${match.content}`;
       })
       .join('\n\n');
 
     const profileContext = profileVectorMatches
-      .map((match: ProfileMatch) => {
+      .map((match) => {
         const title = profileTitles.get(match.profile_slug) || match.profile_slug;
         return `[From "${title}"]\n${match.content}`;
       })
@@ -268,7 +227,7 @@ export async function POST(req: Request) {
 
     const combinedContext = [policyContext, profileContext].filter(Boolean).join('\n\n');
 
-    // Generate answer using OpenAI
+    // Generate answer
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
@@ -291,9 +250,9 @@ export async function POST(req: Request) {
 
     const answer = completion.choices[0].message.content || 'No answer generated';
 
-    // Choose a primary source from the highest-similarity match among policies and profiles
-    const topPolicy = (matches as PolicyMatch[] | null)?.[0];
-    const topProfile = (pMatches as ProfileMatch[] | null)?.[0];
+    // Choose primary source
+    const topPolicy = matches[0];
+    const topProfile = pMatches[0];
 
     let sources: Array<{ slug: string; title: string; url: string }> = [];
     if (topPolicy && (!topProfile || (topPolicy.similarity || 0) >= (topProfile.similarity || 0))) {
@@ -310,8 +269,8 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     console.error('Chat error:', error);
     const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ 
-      error: message 
+    return NextResponse.json({
+      error: message
     }, { status: 500 });
   }
 }

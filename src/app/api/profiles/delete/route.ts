@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supaAdmin } from '@/lib/supabaseAdmin';
+import { db } from '@/lib/db';
 
 export async function POST(req: Request) {
   const key = req.headers.get('x-edit-token');
@@ -12,25 +12,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing slug' }, { status: 400 });
   }
 
-  // Best-effort cleanup of profile embeddings first
-  const { error: embErr } = await supaAdmin
-    .from('profile_embeddings')
-    .delete()
-    .eq('profile_slug', slug);
+  try {
+    // Best-effort cleanup of profile embeddings first
+    await db.query('DELETE FROM profile_embeddings WHERE profile_slug = $1', [slug]);
 
-  if (embErr) {
-    console.warn('Failed to delete profile embeddings for', slug, embErr.message);
+    // Delete the profile row
+    const result = await db.query('DELETE FROM profiles WHERE slug = $1 RETURNING slug', [slug]);
+
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true, deleted: slug });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
-
-  // Delete the profile row
-  const { error: delErr } = await supaAdmin
-    .from('profiles')
-    .delete()
-    .eq('slug', slug);
-
-  if (delErr) {
-    return NextResponse.json({ error: delErr.message }, { status: 400 });
-  }
-
-  return NextResponse.json({ ok: true, deleted: slug });
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supaAdmin } from '@/lib/supabaseAdmin';
+import { db } from '@/lib/db';
 
 export async function POST(req: Request) {
   // Token gated, consistent with upsert route
@@ -13,26 +13,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing slug' }, { status: 400 });
   }
 
-  // Best-effort cleanup of embeddings first
-  const { error: embErr } = await supaAdmin
-    .from('policy_embeddings')
-    .delete()
-    .eq('policy_slug', slug);
+  try {
+    // Best-effort cleanup of embeddings first (cascade delete should handle this, but be explicit)
+    await db.query('DELETE FROM policy_embeddings WHERE policy_slug = $1', [slug]);
 
-  if (embErr) {
-    // Not fatal for deletion, but surface for visibility
-    console.warn('Failed to delete embeddings for', slug, embErr.message);
+    // Delete the policy row
+    const result = await db.query('DELETE FROM policies WHERE slug = $1 RETURNING slug', [slug]);
+
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Policy not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true, deleted: slug });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
-
-  // Delete the policy row
-  const { error: delErr } = await supaAdmin
-    .from('policies')
-    .delete()
-    .eq('slug', slug);
-
-  if (delErr) {
-    return NextResponse.json({ error: delErr.message }, { status: 400 });
-  }
-
-  return NextResponse.json({ ok: true, deleted: slug });
 }

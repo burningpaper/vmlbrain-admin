@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supaAdmin } from '@/lib/supabaseAdmin';
+import { db } from '@/lib/db';
 import OpenAI from 'openai';
 
 // Chunk text into smaller pieces for embedding
@@ -45,13 +45,10 @@ export async function POST(req: Request) {
     }
 
     // Get the policy
-    const { data: policy, error: policyError } = await supaAdmin
-      .from('policies')
-      .select('*')
-      .eq('slug', slug)
-      .single();
+    const result = await db.query('SELECT * FROM policies WHERE slug = $1', [slug]);
+    const policy = result.rows[0];
 
-    if (policyError || !policy) {
+    if (!policy) {
       return NextResponse.json({ error: 'Policy not found' }, { status: 404 });
     }
 
@@ -70,10 +67,7 @@ export async function POST(req: Request) {
     const chunks = chunkText(fullText);
 
     // Delete existing embeddings for this policy
-    await supaAdmin
-      .from('policy_embeddings')
-      .delete()
-      .eq('policy_slug', slug);
+    await db.query('DELETE FROM policy_embeddings WHERE policy_slug = $1', [slug]);
 
     // Generate embeddings for each chunk
     const embeddings = await Promise.all(
@@ -94,13 +88,29 @@ export async function POST(req: Request) {
     );
 
     // Insert embeddings into database
-    const { error: insertError } = await supaAdmin
-      .from('policy_embeddings')
-      .insert(embeddings);
+    if (embeddings.length > 0) {
+      const values = embeddings.map((_, i) => {
+        const offset = i * 5;
+        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}::vector)`;
+      }).join(', ');
 
-    if (insertError) {
-      console.error('Error inserting embeddings:', insertError);
-      return NextResponse.json({ error: 'Failed to save embeddings' }, { status: 500 });
+      const params = embeddings.flatMap(e => [
+        e.policy_id,
+        e.policy_slug,
+        e.chunk_index,
+        e.content,
+        `[${e.embedding.join(',')}]`
+      ]);
+
+      try {
+        await db.query(`
+          INSERT INTO policy_embeddings (policy_id, policy_slug, chunk_index, content, embedding)
+          VALUES ${values}
+        `, params);
+      } catch (insertError: any) {
+        console.error('Error inserting embeddings:', insertError);
+        return NextResponse.json({ error: 'Failed to save embeddings' }, { status: 500 });
+      }
     }
 
     return NextResponse.json({ 

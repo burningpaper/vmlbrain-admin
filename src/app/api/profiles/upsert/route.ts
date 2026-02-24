@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supaAdmin } from '@/lib/supabaseAdmin';
+import { db } from '@/lib/db';
 
 export async function POST(req: Request) {
   const key = req.headers.get('x-edit-token');
@@ -28,26 +28,37 @@ export async function POST(req: Request) {
     ? clients.map((c: unknown) => String(c)).filter(Boolean)
     : [];
 
-  const { error } = await supaAdmin
-    .from('profiles')
-    .upsert(
-      {
-        slug,
-        first_name,
-        last_name,
-        job_title,
-        description_html,
-        clients: clientsArr,
-        photo_url: photo_url || null,
-        email,
-        status,
-        experience: experience || null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'slug' }
-    );
-
-  if (error) {
+  try {
+    await db.query(`
+      INSERT INTO profiles (
+        slug, first_name, last_name, job_title, description_html,
+        clients, photo_url, email, status, experience, updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+      ON CONFLICT (slug) DO UPDATE SET
+        first_name = EXCLUDED.first_name,
+        last_name = EXCLUDED.last_name,
+        job_title = EXCLUDED.job_title,
+        description_html = EXCLUDED.description_html,
+        clients = EXCLUDED.clients,
+        photo_url = EXCLUDED.photo_url,
+        email = EXCLUDED.email,
+        status = EXCLUDED.status,
+        experience = EXCLUDED.experience,
+        updated_at = EXCLUDED.updated_at
+    `, [
+      slug,
+      first_name,
+      last_name,
+      job_title,
+      description_html,
+      clientsArr,
+      photo_url || null,
+      email,
+      status,
+      experience || null
+    ]);
+  } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 

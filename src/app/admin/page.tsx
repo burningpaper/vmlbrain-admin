@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supa } from '@/lib/supabase';
 import Link from 'next/link';
 import PolicyEditor from '@/components/PolicyEditor';
 
@@ -58,34 +57,45 @@ export default function AdminPage() {
   // Fetch all policies for the sidebar
   useEffect(() => {
     (async () => {
-      const { data, error } = await supa
-        .from('policies')
-        .select('slug,title,parent_slug')
-        .order('title', { ascending: true });
-
-      if (!error && data) setList(data);
+      try {
+        const res = await fetch('/api/policies/list');
+        if (res.ok) {
+          const data = await res.json();
+          setList(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch policies:', error);
+      }
     })();
   }, []);
 
   // Fetch sections for section selector
   useEffect(() => {
     (async () => {
-      const { data } = await supa
-        .from('sections')
-        .select('key,name')
-        .order('sort_order');
-      if (data) setSections(data as { key: string; name: string }[]);
+      try {
+        const res = await fetch('/api/sections/list');
+        if (res.ok) {
+          const data = await res.json();
+          setSections(data as { key: string; name: string }[]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch sections:', error);
+      }
     })();
   }, []);
 
   // Fetch profiles list for sidebar
   useEffect(() => {
     (async () => {
-      const { data } = await supa
-        .from('profiles')
-        .select('slug,first_name,last_name,job_title')
-        .order('last_name', { ascending: true });
-      if (data) setProfiles(data as ProfileListItem[]);
+      try {
+        const res = await fetch('/api/profiles/list');
+        if (res.ok) {
+          const data = await res.json();
+          setProfiles(data as ProfileListItem[]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch profiles:', error);
+      }
     })();
   }, []);
 
@@ -117,47 +127,51 @@ export default function AdminPage() {
 
   // Load a specific policy for editing
   async function load(s: string) {
-    const { data, error } = await supa
-      .from('policies')
-      .select('*')
-      .eq('slug', s)
-      .single();
-
-    if (!error && data) {
-      setContentType('knowledge');
-      setSlug(data.slug);
-      setTitle(data.title);
-      setSummary((data as { summary?: string | null }).summary || '');
-      setBodyHtml((data as { body_md?: string | null }).body_md || '<p></p>');
-      setParentSlug((data as { parent_slug?: string | null }).parent_slug || '');
-      setSectionKey((data as { section_key?: string | null }).section_key || '');
-      const boxFolder = (data as { box_folder_id?: string | null }).box_folder_id || '';
-      const boxFiles = (data as { box_file_ids?: string[] | null }).box_file_ids || [];
-      setBoxFolderId(boxFolder);
-      setBoxFileIdsText(boxFiles.join(','));
+    try {
+      const res = await fetch(`/api/policies/get?slug=${encodeURIComponent(s)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setContentType('knowledge');
+        setSlug(data.slug);
+        setTitle(data.title);
+        setSummary((data as { summary?: string | null }).summary || '');
+        setBodyHtml((data as { body_md?: string | null }).body_md || '<p></p>');
+        setParentSlug((data as { parent_slug?: string | null }).parent_slug || '');
+        setSectionKey((data as { section_key?: string | null }).section_key || '');
+        const boxFolder = (data as { box_folder_id?: string | null }).box_folder_id || '';
+        const boxFiles = (data as { box_file_ids?: string[] | null }).box_file_ids || [];
+        setBoxFolderId(boxFolder);
+        setBoxFileIdsText(boxFiles.join(','));
+      } else {
+        console.error('Failed to load policy:', await res.text());
+      }
+    } catch (error) {
+      console.error('Failed to load policy:', error);
     }
   }
 
   // Load a specific profile for editing
   async function loadProfile(s: string) {
-    const { data, error } = await supa
-      .from('profiles')
-      .select('*')
-      .eq('slug', s)
-      .single();
-
-    if (!error && data) {
-      setContentType('profile');
-      const row = data as ProfileRow;
-      setSlug(row.slug || '');
-      setFirstName(row.first_name || '');
-      setLastName(row.last_name || '');
-      setJobTitle(row.job_title || '');
-      setEmail(row.email || '');
-      setClientsText(Array.isArray(row.clients) ? (row.clients as string[]).join(',') : '');
-      setPhotoUrl(row.photo_url || '');
-      setProfileDescHtml(row.description_html || '<p></p>');
-      setExperience((row as { experience?: string | null }).experience || '');
+    try {
+      const res = await fetch(`/api/profiles/get?slug=${encodeURIComponent(s)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setContentType('profile');
+        const row = data as ProfileRow;
+        setSlug(row.slug || '');
+        setFirstName(row.first_name || '');
+        setLastName(row.last_name || '');
+        setJobTitle(row.job_title || '');
+        setEmail(row.email || '');
+        setClientsText(Array.isArray(row.clients) ? (row.clients as string[]).join(',') : '');
+        setPhotoUrl(row.photo_url || '');
+        setProfileDescHtml(row.description_html || '<p></p>');
+        setExperience((row as { experience?: string | null }).experience || '');
+      } else {
+        console.error('Failed to load profile:', await res.text());
+      }
+    } catch (error) {
+      console.error('Failed to load profile:', error);
     }
   }
 
@@ -217,11 +231,11 @@ export default function AdminPage() {
       alert('Save profile failed: ' + text);
     } else {
       alert('Profile saved');
-      const { data } = await supa
-        .from('profiles')
-        .select('slug,first_name,last_name,job_title')
-        .order('last_name', { ascending: true });
-      if (data) setProfiles(data as ProfileListItem[]);
+      const refreshRes = await fetch('/api/profiles/list');
+      if (refreshRes.ok) {
+        const data = await refreshRes.json();
+        setProfiles(data as ProfileListItem[]);
+      }
     }
   }
 
@@ -259,11 +273,11 @@ export default function AdminPage() {
     setPhotoUrl('');
     setProfileDescHtml('<p></p>');
 
-    const { data } = await supa
-      .from('profiles')
-      .select('slug,first_name,last_name,job_title')
-      .order('last_name', { ascending: true });
-    if (data) setProfiles(data as ProfileListItem[]);
+    const refreshRes = await fetch('/api/profiles/list');
+    if (refreshRes.ok) {
+      const data = await refreshRes.json();
+      setProfiles(data as ProfileListItem[]);
+    }
   }
 
   // Delete current article (token-gated)
@@ -308,11 +322,11 @@ export default function AdminPage() {
     setBoxFileIdsText('');
 
     // Refresh list to reflect deletion
-    const { data } = await supa
-      .from('policies')
-      .select('slug,title,parent_slug')
-      .order('title', { ascending: true });
-    if (data) setList(data);
+    const refreshRes = await fetch('/api/policies/list');
+    if (refreshRes.ok) {
+      const data = await refreshRes.json();
+      setList(data);
+    }
   }
 
   // Save/update via API (token-gated)
@@ -346,11 +360,11 @@ export default function AdminPage() {
     } else {
       alert('Saved');
       // Refresh list to show updated tree
-      const { data } = await supa
-        .from('policies')
-        .select('slug,title,parent_slug')
-        .order('title', { ascending: true });
-      if (data) setList(data);
+      const refreshRes = await fetch('/api/policies/list');
+      if (refreshRes.ok) {
+        const data = await refreshRes.json();
+        setList(data);
+      }
     }
   }
 

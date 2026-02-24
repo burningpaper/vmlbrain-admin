@@ -1,4 +1,4 @@
-import { supa } from '@/lib/supabase';
+import { db } from '@/lib/db';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -15,13 +15,14 @@ type ProfileMeta = {
 };
 
 export default async function PeopleListingPage() {
-  const { data } = await supa
-    .from('profiles')
-    .select('slug, first_name, last_name, job_title, photo_url, status')
-    .eq('status', 'approved')
-    .order('last_name');
+  const result = await db.query(`
+    SELECT slug, first_name, last_name, job_title, photo_url
+    FROM profiles
+    WHERE status = 'approved'
+    ORDER BY last_name
+  `);
 
-  const profiles = (data as (ProfileMeta & { status?: string })[] | null) || [];
+  const profiles = result.rows as ProfileMeta[];
 
   return (
     <div className="min-h-screen bg-white">

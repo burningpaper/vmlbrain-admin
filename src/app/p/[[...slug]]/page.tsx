@@ -1,4 +1,4 @@
-import { supa } from '@/lib/supabase';
+import { db } from '@/lib/db';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import SidebarNav from '@/components/SidebarNav';
@@ -30,17 +30,15 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
     notFound();
   }
 
-  const { data, error } = await supa
-    .from('policies')
-    .select('*')
-    .eq('slug', actualSlug)
-    .eq('status', 'approved')
-    .single();
+  const result = await db.query(
+    'SELECT * FROM policies WHERE slug = $1 AND status = $2',
+    [actualSlug, 'approved']
+  );
 
-  if (error || !data) {
+  if (!result.rows || result.rows.length === 0) {
     notFound();
   }
-  const policy = data as PolicyRow;
+  const policy = result.rows[0] as PolicyRow;
 
   // Build breadcrumb trail
   interface PolicyNav { slug: string; title: string; parent_slug: string | null; }
@@ -48,12 +46,11 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
   let tempSlug: string | null = actualSlug;
 
   while (tempSlug) {
-    const { data } = await supa
-      .from('policies')
-      .select('slug,title,parent_slug')
-      .eq('slug', tempSlug)
-      .single();
-    const policyNode = data as PolicyNav | null;
+    const nodeResult = await db.query(
+      'SELECT slug, title, parent_slug FROM policies WHERE slug = $1',
+      [tempSlug]
+    );
+    const policyNode = nodeResult.rows[0] as PolicyNav | undefined;
 
     if (policyNode) {
       breadcrumb.unshift(policyNode);
@@ -69,25 +66,30 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug?: 
   };
 
   // Get all pages for navigation (include section_key for grouping in SidebarNav)
-  const { data: allPages } = await supa
-    .from('policies')
-    .select('slug, title, parent_slug, section_key')
-    .eq('status', 'approved')
-    .order('title');
+  const allPagesResult = await db.query(`
+    SELECT slug, title, parent_slug, section_key
+    FROM policies
+    WHERE status = 'approved'
+    ORDER BY title
+  `);
+  const allPages = allPagesResult.rows;
 
   // Get sections used for grouping
-  const { data: sections } = await supa
-    .from('sections')
-    .select('key, name, icon, sort_order')
-    .order('sort_order');
+  const sectionsResult = await db.query(`
+    SELECT key, name, icon, sort_order
+    FROM sections
+    ORDER BY sort_order
+  `);
+  const sections = sectionsResult.rows;
 
   // Get direct children of this page (approved only)
-  const { data: children } = await supa
-    .from('policies')
-    .select('slug, title')
-    .eq('parent_slug', actualSlug)
-    .eq('status', 'approved')
-    .order('title');
+  const childrenResult = await db.query(`
+    SELECT slug, title
+    FROM policies
+    WHERE parent_slug = $1 AND status = 'approved'
+    ORDER BY title
+  `, [actualSlug]);
+  const children = childrenResult.rows;
 
   return (
     <div className="min-h-screen bg-white">

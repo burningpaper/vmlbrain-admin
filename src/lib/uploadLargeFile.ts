@@ -1,0 +1,111 @@
+/**
+ * Upload large files directly to Supabase Storage using signed URLs.
+ * This bypasses Vercel's 4.5MB serverless function limit.
+ *
+ * For files under 4MB, you can still use the regular /api/upload endpoint.
+ * For larger files (videos, etc.), use this function.
+ */
+
+interface UploadResult {
+  url: string;
+  error?: string;
+}
+
+export async function uploadLargeFile(
+  file: File,
+  token: string,
+  onProgress?: (percent: number) => void
+): Promise<UploadResult> {
+  try {
+    // Step 1: Get signed upload URL from our API
+    const signedUrlRes = await fetch('/api/upload/signed-url', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-edit-token': token,
+      },
+      body: JSON.stringify({
+        filename: file.name,
+        contentType: file.type,
+      }),
+    });
+
+    if (!signedUrlRes.ok) {
+      const text = await signedUrlRes.text();
+      return { url: '', error: `Failed to get upload URL: ${text}` };
+    }
+
+    const { signedUrl, publicUrl } = await signedUrlRes.json();
+
+    // Step 2: Upload file directly to Supabase Storage
+    // Using XMLHttpRequest for progress tracking
+    return new Promise((resolve) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable && onProgress) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          onProgress(percent);
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve({ url: publicUrl });
+        } else {
+          resolve({ url: '', error: `Upload failed with status ${xhr.status}` });
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        resolve({ url: '', error: 'Upload failed - network error' });
+      });
+
+      xhr.open('PUT', signedUrl);
+      xhr.setRequestHeader('Content-Type', file.type);
+      xhr.send(file);
+    });
+  } catch (error: any) {
+    return { url: '', error: error.message || 'Upload failed' };
+  }
+}
+
+/**
+ * Smart upload function that chooses the best method based on file size.
+ * - Files under 4MB: Use regular API route (simpler)
+ * - Files over 4MB: Use signed URL direct upload
+ */
+export async function uploadFile(
+  file: File,
+  token: string,
+  onProgress?: (percent: number) => void
+): Promise<UploadResult> {
+  const FOUR_MB = 4 * 1024 * 1024;
+
+  if (file.size > FOUR_MB) {
+    // Large file: use signed URL upload
+    return uploadLargeFile(file, token, onProgress);
+  }
+
+  // Small file: use regular API route
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'x-edit-token': token },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      return { url: '', error: text };
+    }
+
+    const { url } = await res.json();
+    return { url };
+  } catch (error: any) {
+    return { url: '', error: error.message || 'Upload failed' };
+  }
+}

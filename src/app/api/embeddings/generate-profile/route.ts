@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supaAdmin } from '@/lib/supabaseAdmin';
+import { db } from '@/lib/db';
 import OpenAI from 'openai';
 
 // Chunk text into smaller pieces for embedding
@@ -45,13 +45,10 @@ export async function POST(req: Request) {
     }
 
     // Get the profile
-    const { data: profile, error: profileError } = await supaAdmin
-      .from('profiles')
-      .select('*')
-      .eq('slug', slug)
-      .single();
+    const result = await db.query('SELECT * FROM profiles WHERE slug = $1', [slug]);
+    const profile = result.rows[0];
 
-    if (profileError || !profile) {
+    if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
@@ -78,7 +75,7 @@ export async function POST(req: Request) {
     const chunks = chunkText(fullText);
 
     // Delete existing embeddings for this profile
-    await supaAdmin.from('profile_embeddings').delete().eq('profile_slug', slug);
+    await db.query('DELETE FROM profile_embeddings WHERE profile_slug = $1', [slug]);
 
     // Generate embeddings for each chunk
     const embeddings = await Promise.all(
@@ -99,11 +96,29 @@ export async function POST(req: Request) {
     );
 
     // Insert embeddings into database
-    const { error: insertError } = await supaAdmin.from('profile_embeddings').insert(embeddings);
+    if (embeddings.length > 0) {
+      const values = embeddings.map((_, i) => {
+        const offset = i * 5;
+        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}::vector)`;
+      }).join(', ');
 
-    if (insertError) {
-      console.error('Error inserting profile embeddings:', insertError);
-      return NextResponse.json({ error: 'Failed to save profile embeddings' }, { status: 500 });
+      const params = embeddings.flatMap(e => [
+        e.profile_id,
+        e.profile_slug,
+        e.chunk_index,
+        e.content,
+        `[${e.embedding.join(',')}]`
+      ]);
+
+      try {
+        await db.query(`
+          INSERT INTO profile_embeddings (profile_id, profile_slug, chunk_index, content, embedding)
+          VALUES ${values}
+        `, params);
+      } catch (insertError: any) {
+        console.error('Error inserting profile embeddings:', insertError);
+        return NextResponse.json({ error: 'Failed to save profile embeddings' }, { status: 500 });
+      }
     }
 
     return NextResponse.json({
