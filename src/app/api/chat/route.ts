@@ -87,16 +87,23 @@ export async function POST(req: Request) {
         // Profiles keyword search
         let profileContext = '';
         let primaryProfile: { slug: string; title: string } | null = null;
+        interface ProfileResult {
+          slug: string;
+          first_name: string;
+          last_name: string;
+          job_title: string;
+          description_html: string | null;
+        }
         if (terms.length > 0) {
           const profConditions = terms.map(() => '(first_name ILIKE $1 OR last_name ILIKE $1 OR job_title ILIKE $1 OR description_html ILIKE $1)').join(' OR ');
-          const kwProfilesResult = await db.query<any>(
+          const kwProfilesResult = await db.query<ProfileResult>(
             `SELECT slug, first_name, last_name, job_title, description_html FROM profiles WHERE ${profConditions} LIMIT 3`,
             terms.map(t => `%${t}%`)
           );
           const kwProfiles = kwProfilesResult.rows;
           if (kwProfiles.length > 0) {
             profileContext = kwProfiles
-              .map((p: any) => {
+              .map((p) => {
                 const name = `${p.first_name} ${p.last_name}`.trim();
                 return `[From "${name} — ${p.job_title}"]\n${clean(p.description_html || '')}`;
               })

@@ -107,7 +107,7 @@ export async function POST(req: Request) {
           INSERT INTO policy_embeddings (policy_id, policy_slug, chunk_index, content, embedding)
           VALUES ${values}
         `, params);
-      } catch (insertError: any) {
+      } catch (insertError) {
         console.error('Error inserting embeddings:', insertError);
         return NextResponse.json({ error: 'Failed to save embeddings' }, { status: 500 });
       }

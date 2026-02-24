@@ -115,7 +115,7 @@ export async function POST(req: Request) {
           INSERT INTO profile_embeddings (profile_id, profile_slug, chunk_index, content, embedding)
           VALUES ${values}
         `, params);
-      } catch (insertError: any) {
+      } catch (insertError) {
         console.error('Error inserting profile embeddings:', insertError);
         return NextResponse.json({ error: 'Failed to save profile embeddings' }, { status: 500 });
       }
