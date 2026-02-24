@@ -38,7 +38,7 @@ export async function uploadLargeFile(
     const { signedUrl, publicUrl } = await signedUrlRes.json();
 
     // Step 2: Upload file directly to Supabase Storage
-    // Supabase signed URLs require POST with FormData
+    // Signed URLs use PUT with raw file body
     // Using XMLHttpRequest for progress tracking
     return new Promise((resolve) => {
       const xhr = new XMLHttpRequest();
@@ -74,12 +74,12 @@ export async function uploadLargeFile(
         resolve({ url: '', error: 'Upload failed - network error' });
       });
 
-      // Supabase requires POST with the file in FormData
-      const formData = new FormData();
-      formData.append('', file); // Supabase expects empty string key
-
-      xhr.open('POST', signedUrl);
-      xhr.send(formData);
+      // Signed URL upload: PUT with raw file body and required headers
+      // Based on Supabase storage-js SDK implementation
+      xhr.open('PUT', signedUrl);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      xhr.setRequestHeader('x-upsert', 'false');
+      xhr.send(file);
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Upload failed';
