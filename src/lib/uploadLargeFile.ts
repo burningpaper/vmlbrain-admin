@@ -38,6 +38,7 @@ export async function uploadLargeFile(
     const { signedUrl, publicUrl } = await signedUrlRes.json();
 
     // Step 2: Upload file directly to Supabase Storage
+    // Supabase signed URLs require POST with FormData
     // Using XMLHttpRequest for progress tracking
     return new Promise((resolve) => {
       const xhr = new XMLHttpRequest();
@@ -53,7 +54,19 @@ export async function uploadLargeFile(
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve({ url: publicUrl });
         } else {
-          resolve({ url: '', error: `Upload failed with status ${xhr.status}` });
+          // Try to get detailed error from response
+          let errorMsg = `Upload failed with status ${xhr.status}`;
+          try {
+            const response = JSON.parse(xhr.responseText);
+            if (response.error || response.message) {
+              errorMsg += `: ${response.error || response.message}`;
+            }
+          } catch {
+            if (xhr.responseText) {
+              errorMsg += `: ${xhr.responseText.substring(0, 200)}`;
+            }
+          }
+          resolve({ url: '', error: errorMsg });
         }
       });
 
@@ -61,9 +74,12 @@ export async function uploadLargeFile(
         resolve({ url: '', error: 'Upload failed - network error' });
       });
 
-      xhr.open('PUT', signedUrl);
-      xhr.setRequestHeader('Content-Type', file.type);
-      xhr.send(file);
+      // Supabase requires POST with the file in FormData
+      const formData = new FormData();
+      formData.append('', file); // Supabase expects empty string key
+
+      xhr.open('POST', signedUrl);
+      xhr.send(formData);
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Upload failed';
