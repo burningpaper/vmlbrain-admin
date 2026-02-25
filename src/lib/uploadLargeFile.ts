@@ -1,19 +1,28 @@
 /**
- * Upload large files directly to Supabase Storage using signed URLs.
- * This bypasses Vercel's 4.5MB serverless function limit.
+ * Smart file upload with support for large files.
  *
- * For files under 4MB, you can still use the regular /api/upload endpoint.
- * For larger files (videos, etc.), use this function.
+ * Upload strategy based on file size:
+ * - Under 4MB: Use regular /api/upload (through Vercel serverless)
+ * - 4MB to 45MB: Use signed URL direct upload
+ * - Over 45MB: Use TUS resumable upload (supports files up to 5GB)
  */
+
+import * as tus from 'tus-js-client';
 
 interface UploadResult {
   url: string;
   error?: string;
 }
 
-export async function uploadLargeFile(
+const FOUR_MB = 4 * 1024 * 1024;
+const FORTY_FIVE_MB = 45 * 1024 * 1024;
+
+/**
+ * Upload files 4MB-45MB using signed URL direct upload.
+ */
+async function uploadWithSignedUrl(
   file: File,
-  token: string,
+  editToken: string,
   onProgress?: (percent: number) => void
 ): Promise<UploadResult> {
   try {
@@ -22,7 +31,7 @@ export async function uploadLargeFile(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-edit-token': token,
+        'x-edit-token': editToken,
       },
       body: JSON.stringify({
         filename: file.name,
@@ -38,8 +47,6 @@ export async function uploadLargeFile(
     const { signedUrl, publicUrl } = await signedUrlRes.json();
 
     // Step 2: Upload file directly to Supabase Storage
-    // Signed URLs use PUT with raw file body
-    // Using XMLHttpRequest for progress tracking
     return new Promise((resolve) => {
       const xhr = new XMLHttpRequest();
 
@@ -54,7 +61,6 @@ export async function uploadLargeFile(
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve({ url: publicUrl });
         } else {
-          // Try to get detailed error from response
           let errorMsg = `Upload failed with status ${xhr.status}`;
           try {
             const response = JSON.parse(xhr.responseText);
@@ -74,8 +80,6 @@ export async function uploadLargeFile(
         resolve({ url: '', error: 'Upload failed - network error' });
       });
 
-      // Signed URL upload: PUT with raw file body and required headers
-      // Based on Supabase storage-js SDK implementation
       xhr.open('PUT', signedUrl);
       xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
       xhr.setRequestHeader('x-upsert', 'false');
@@ -88,30 +92,107 @@ export async function uploadLargeFile(
 }
 
 /**
- * Smart upload function that chooses the best method based on file size.
- * - Files under 4MB: Use regular API route (simpler)
- * - Files over 4MB: Use signed URL direct upload
+ * Upload files over 45MB using TUS resumable upload protocol.
+ * Supports files up to 5GB with automatic resume on failure.
  */
-export async function uploadFile(
+async function uploadWithTus(
   file: File,
-  token: string,
+  editToken: string,
   onProgress?: (percent: number) => void
 ): Promise<UploadResult> {
-  const FOUR_MB = 4 * 1024 * 1024;
+  try {
+    // Step 1: Get upload info from our API (token and path)
+    const signedUrlRes = await fetch('/api/upload/signed-url', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-edit-token': editToken,
+      },
+      body: JSON.stringify({
+        filename: file.name,
+        contentType: file.type,
+      }),
+    });
 
-  if (file.size > FOUR_MB) {
-    // Large file: use signed URL upload
-    return uploadLargeFile(file, token, onProgress);
+    if (!signedUrlRes.ok) {
+      const text = await signedUrlRes.text();
+      return { url: '', error: `Failed to get upload URL: ${text}` };
+    }
+
+    const { token, objectName, publicUrl } = await signedUrlRes.json();
+
+    // Extract project ID from Supabase URL for TUS endpoint
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const projectId = supabaseUrl.match(/https:\/\/([^.]+)/)?.[1] || '';
+
+    if (!projectId) {
+      return { url: '', error: 'Could not determine Supabase project ID' };
+    }
+
+    // Step 2: Use TUS protocol for resumable upload
+    return new Promise((resolve) => {
+      const upload = new tus.Upload(file, {
+        endpoint: `https://${projectId}.supabase.co/storage/v1/upload/resumable`,
+        retryDelays: [0, 3000, 5000, 10000, 20000],
+        headers: {
+          'x-upsert': 'false',
+        },
+        uploadDataDuringCreation: true,
+        removeFingerprintOnSuccess: true,
+        metadata: {
+          bucketName: 'policy-assets',
+          objectName: objectName,
+          contentType: file.type || 'application/octet-stream',
+          cacheControl: '3600',
+        },
+        // Use signed token for authentication
+        onBeforeRequest: (req) => {
+          req.setHeader('x-signature', token);
+        },
+        chunkSize: 6 * 1024 * 1024, // 6MB chunks (required by Supabase)
+        onError: (error) => {
+          console.error('TUS upload error:', error);
+          resolve({ url: '', error: `Upload failed: ${error.message}` });
+        },
+        onProgress: (bytesUploaded, bytesTotal) => {
+          if (onProgress) {
+            const percent = Math.round((bytesUploaded / bytesTotal) * 100);
+            onProgress(percent);
+          }
+        },
+        onSuccess: () => {
+          resolve({ url: publicUrl });
+        },
+      });
+
+      // Check for previous uploads and resume if found
+      upload.findPreviousUploads().then((previousUploads) => {
+        if (previousUploads.length) {
+          upload.resumeFromPreviousUpload(previousUploads[0]);
+        }
+        upload.start();
+      });
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Upload failed';
+    return { url: '', error: message };
   }
+}
 
-  // Small file: use regular API route
+/**
+ * Upload small files (under 4MB) through our API route.
+ */
+async function uploadSmallFile(
+  file: File,
+  editToken: string
+): Promise<UploadResult> {
   const formData = new FormData();
   formData.append('file', file);
 
   try {
     const res = await fetch('/api/upload', {
       method: 'POST',
-      headers: { 'x-edit-token': token },
+      headers: { 'x-edit-token': editToken },
       body: formData,
     });
 
@@ -126,4 +207,38 @@ export async function uploadFile(
     const message = error instanceof Error ? error.message : 'Upload failed';
     return { url: '', error: message };
   }
+}
+
+/**
+ * Smart upload function that chooses the best method based on file size.
+ * - Files under 4MB: Use regular API route (simpler)
+ * - Files 4MB-45MB: Use signed URL direct upload
+ * - Files over 45MB: Use TUS resumable upload (supports up to 5GB)
+ */
+export async function uploadFile(
+  file: File,
+  token: string,
+  onProgress?: (percent: number) => void
+): Promise<UploadResult> {
+  if (file.size <= FOUR_MB) {
+    // Small file: use regular API route
+    return uploadSmallFile(file, token);
+  } else if (file.size <= FORTY_FIVE_MB) {
+    // Medium file: use signed URL direct upload
+    return uploadWithSignedUrl(file, token, onProgress);
+  } else {
+    // Large file: use TUS resumable upload
+    return uploadWithTus(file, token, onProgress);
+  }
+}
+
+/**
+ * Legacy export for backward compatibility.
+ */
+export async function uploadLargeFile(
+  file: File,
+  token: string,
+  onProgress?: (percent: number) => void
+): Promise<UploadResult> {
+  return uploadFile(file, token, onProgress);
 }

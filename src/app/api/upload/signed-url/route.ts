@@ -63,6 +63,7 @@ export async function POST(req: Request) {
       signedUrl: data.signedUrl,
       token: data.token,
       path: data.path,
+      objectName: uniqueFilename, // Clean filename for TUS uploads
       publicUrl,
     });
   } catch (error) {
