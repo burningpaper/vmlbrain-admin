@@ -1,8 +1,9 @@
-// Utility to transform simple video shortcodes and plain links into inline, responsive embeds
+// Utility to transform shortcodes and plain links into inline, responsive embeds
 // Supported patterns:
 // - {{youtube:VIDEO_ID}}
 // - {{vimeo:VIDEO_ID}}
 // - {{video:URL}} for direct MP4/WEBM sources
+// - {{file:URL|TYPE}} for documents (PDF, PPTX, etc.)
 // Additionally converts bare links matching YouTube/Vimeo/MP4 to embeds when they appear as standalone paragraphs
 
 function escapeHtmlAttr(s: string): string {
@@ -89,6 +90,63 @@ function isDirectVideo(url: string): boolean {
   }
 }
 
+function renderFileEmbed(url: string, type: string): string {
+  const safeUrl = escapeHtmlAttr(url);
+  const lowerType = type.toLowerCase();
+
+  // PDF: use browser native viewer
+  if (lowerType === 'pdf') {
+    return `
+<div class="not-prose my-6">
+  <iframe
+    src="${safeUrl}"
+    width="100%"
+    height="600"
+    style="border:1px solid #e5e7eb;border-radius:8px"
+    title="PDF document"
+  ></iframe>
+</div>`;
+  }
+
+  // PowerPoint: use Microsoft Office Online viewer
+  if (lowerType === 'pptx' || lowerType === 'ppt') {
+    const officeUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+    return `
+<div class="not-prose my-6" style="position:relative;aspect-ratio:16/9;width:100%">
+  <iframe
+    src="${escapeHtmlAttr(officeUrl)}"
+    style="position:absolute;inset:0;width:100%;height:100%;border:1px solid #e5e7eb;border-radius:8px"
+    frameborder="0"
+    title="PowerPoint presentation"
+  ></iframe>
+</div>`;
+  }
+
+  // Word/Excel: also use Microsoft Office Online viewer
+  if (lowerType === 'docx' || lowerType === 'doc' || lowerType === 'xlsx' || lowerType === 'xls') {
+    const officeUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+    return `
+<div class="not-prose my-6" style="position:relative;aspect-ratio:4/3;width:100%">
+  <iframe
+    src="${escapeHtmlAttr(officeUrl)}"
+    style="position:absolute;inset:0;width:100%;height:100%;border:1px solid #e5e7eb;border-radius:8px"
+    frameborder="0"
+    title="Office document"
+  ></iframe>
+</div>`;
+  }
+
+  // Fallback: styled download link
+  const filename = url.split('/').pop()?.split('?')[0] || 'Download file';
+  return `
+<div class="not-prose my-4 p-4 bg-gray-50 rounded-lg border border-gray-200 inline-flex items-center gap-3">
+  <svg class="w-6 h-6 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+  </svg>
+  <a href="${safeUrl}" download class="text-[#667eea] hover:underline font-medium">${escapeHtmlAttr(filename)}</a>
+</div>`;
+}
+
 export function renderEmbeds(html: string): string {
   if (!html) return html;
   let out = html;
@@ -130,6 +188,17 @@ export function renderEmbeds(html: string): string {
     const trimmed = url.trim();
     if (!isDirectVideo(trimmed)) return _m;
     return wrapVideo(trimmed);
+  });
+
+  // File shortcodes: {{file:URL|TYPE}}
+  // In paragraph context first
+  out = out.replace(/<p>\s*\{\{\s*file\s*:\s*([^|]+)\|(\w+)\s*\}\}\s*<\/p>/g, (_m, url: string, type: string) => {
+    return renderFileEmbed(url.trim(), type.trim());
+  });
+
+  // Fallback: bare file shortcodes anywhere
+  out = out.replace(/\{\{\s*file\s*:\s*([^|]+)\|(\w+)\s*\}\}/g, (_m, url: string, type: string) => {
+    return renderFileEmbed(url.trim(), type.trim());
   });
 
   // Standalone links in their own paragraph -> embed

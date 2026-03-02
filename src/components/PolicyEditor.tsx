@@ -254,6 +254,52 @@ export default function PolicyEditor({
     input.click();
   }, [editor, token]);
 
+  const insertFileFromUpload = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.pptx,.ppt,.doc,.docx,.xls,.xlsx';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      if (!token) {
+        alert('Please enter your EDIT_TOKEN in the Admin panel to upload files.');
+        return;
+      }
+
+      // Get file extension for the shortcode
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'file';
+
+      // Show progress for large files
+      const isLargeFile = file.size > 4 * 1024 * 1024; // 4MB
+      let progressDiv: HTMLDivElement | null = null;
+
+      if (isLargeFile) {
+        progressDiv = document.createElement('div');
+        progressDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a1a;color:#fff;padding:24px 32px;border-radius:12px;z-index:9999;text-align:center;min-width:200px;';
+        progressDiv.innerHTML = `<div style="margin-bottom:8px;font-weight:600;">Uploading ${file.name}...</div><div id="upload-progress">0%</div>`;
+        document.body.appendChild(progressDiv);
+      }
+
+      try {
+        const url = await uploadFile(file, token, (percent) => {
+          if (progressDiv) {
+            const progressEl = progressDiv.querySelector('#upload-progress');
+            if (progressEl) progressEl.textContent = `${percent}%`;
+          }
+        });
+        // Insert file shortcode
+        editor?.chain().focus().insertContent(`<p>{{file:${url}|${ext}}}</p>`).run();
+      } catch (error) {
+        alert('File upload failed: ' + error);
+      } finally {
+        if (progressDiv) {
+          document.body.removeChild(progressDiv);
+        }
+      }
+    };
+    input.click();
+  }, [editor, token]);
+
   // Update editor content when value prop changes
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
@@ -384,6 +430,14 @@ export default function PolicyEditor({
         </button>
         <button
           type="button"
+          onClick={insertFileFromUpload}
+          className="px-3 py-1.5 rounded-lg hover:bg-gray-100 bg-gray-50 text-[#4a4a4a] text-sm transition-colors"
+          title="Upload File (PDF, PowerPoint, Word, Excel)"
+        >
+          File
+        </button>
+        <button
+          type="button"
           onClick={insertTable}
           className="px-3 py-1.5 rounded-lg hover:bg-gray-100 bg-gray-50 text-[#4a4a4a] text-sm transition-colors"
           title="Insert Table"
@@ -449,7 +503,7 @@ export default function PolicyEditor({
       </div>
 
       <div className="text-xs text-[#999] border-t border-gray-200 pt-3">
-        Tip: You can paste or drag & drop images directly into the editor
+        Tip: Paste or drag images into the editor. Use the File button to upload PDFs and PowerPoint presentations with inline preview.
       </div>
     </div>
   );
