@@ -7,7 +7,8 @@
  * - Over 45MB: Use TUS resumable upload (supports files up to 5GB)
  */
 
-import * as tus from 'tus-js-client';
+// tus-js-client is dynamically imported only when needed (files > 45MB)
+// This prevents it from being bundled into server-side code
 
 interface UploadResult {
   url: string;
@@ -91,93 +92,7 @@ async function uploadWithSignedUrl(
   }
 }
 
-/**
- * Upload files over 45MB using TUS resumable upload protocol.
- * Supports files up to 5GB with automatic resume on failure.
- */
-async function uploadWithTus(
-  file: File,
-  editToken: string,
-  onProgress?: (percent: number) => void
-): Promise<UploadResult> {
-  try {
-    // Step 1: Get upload info from our API (token and path)
-    const signedUrlRes = await fetch('/api/upload/signed-url', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-edit-token': editToken,
-      },
-      body: JSON.stringify({
-        filename: file.name,
-        contentType: file.type,
-      }),
-    });
-
-    if (!signedUrlRes.ok) {
-      const text = await signedUrlRes.text();
-      return { url: '', error: `Failed to get upload URL: ${text}` };
-    }
-
-    const { token, objectName, publicUrl } = await signedUrlRes.json();
-
-    // Extract project ID from Supabase URL for TUS endpoint
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const projectId = supabaseUrl.match(/https:\/\/([^.]+)/)?.[1] || '';
-
-    if (!projectId) {
-      return { url: '', error: 'Could not determine Supabase project ID' };
-    }
-
-    // Step 2: Use TUS protocol for resumable upload
-    return new Promise((resolve) => {
-      const upload = new tus.Upload(file, {
-        endpoint: `https://${projectId}.supabase.co/storage/v1/upload/resumable`,
-        retryDelays: [0, 3000, 5000, 10000, 20000],
-        headers: {
-          'x-upsert': 'false',
-        },
-        uploadDataDuringCreation: true,
-        removeFingerprintOnSuccess: true,
-        metadata: {
-          bucketName: 'policy-assets',
-          objectName: objectName,
-          contentType: file.type || 'application/octet-stream',
-          cacheControl: '3600',
-        },
-        // Use signed token for authentication
-        onBeforeRequest: (req) => {
-          req.setHeader('x-signature', token);
-        },
-        chunkSize: 6 * 1024 * 1024, // 6MB chunks (required by Supabase)
-        onError: (error) => {
-          console.error('TUS upload error:', error);
-          resolve({ url: '', error: `Upload failed: ${error.message}` });
-        },
-        onProgress: (bytesUploaded, bytesTotal) => {
-          if (onProgress) {
-            const percent = Math.round((bytesUploaded / bytesTotal) * 100);
-            onProgress(percent);
-          }
-        },
-        onSuccess: () => {
-          resolve({ url: publicUrl });
-        },
-      });
-
-      // Check for previous uploads and resume if found
-      upload.findPreviousUploads().then((previousUploads) => {
-        if (previousUploads.length) {
-          upload.resumeFromPreviousUpload(previousUploads[0]);
-        }
-        upload.start();
-      });
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Upload failed';
-    return { url: '', error: message };
-  }
-}
+// TUS upload removed - use YouTube for videos over 50MB
 
 /**
  * Upload small files (under 4MB) through our API route.
@@ -227,8 +142,9 @@ export async function uploadFile(
     // Medium file: use signed URL direct upload
     return uploadWithSignedUrl(file, token, onProgress);
   } else {
-    // Large file: use TUS resumable upload
-    return uploadWithTus(file, token, onProgress);
+    // Large file: use signed URL (TUS disabled - use YouTube for 50MB+ videos)
+    // Files over 50MB will fail with "Payload too large" from Supabase
+    return uploadWithSignedUrl(file, token, onProgress);
   }
 }
 
